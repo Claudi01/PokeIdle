@@ -1,0 +1,38 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0981b36316b7b894bb996f2d6fe3ff29, type: 3}
+  m_Name: Ember
+  m_EditorClassIdentifier: Assembly-CSharp::PokeIdle.CreatureDefinition
+  Id: 4
+  CreatureName: Charmander
+  PrimaryType: 1
+  HasSecondaryType: 0
+  SecondaryType: 0
+  FarmAI: 1
+  BaseRarity: 0
+  BaseStats:
+    HP: 45
+    Attack: 55
+    Defense: 40
+    SpAttack: 60
+    SpDefense: 50
+    Speed: 65
+  SpriteFront: {fileID: 0}
+  SpriteBack: {fileID: 0}
+  Icon: {fileID: 0}
+  Learnset:
+  - Level: 1
+    Move: {fileID: 11400000, guid: 9e63c1a5ab48cf445b88e12e5edc980c, type: 2}
+  - Level: 1
+    Move: {fileID: 11400000, guid: e460ea92ec9c7d14095492ff85ebb238, type: 2}
+  EvolutionTarget: {fileID: 0}
+  EvolutionLevel: 0
