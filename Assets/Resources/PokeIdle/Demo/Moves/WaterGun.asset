@@ -10,13 +10,13 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 476668b67c521a94298ee826492ab4c8, type: 3}
-  m_Name: Ember
+  m_Name: WaterGun
   m_EditorClassIdentifier: Assembly-CSharp::PokeIdle.MoveDefinition
-  Id: 2
-  MoveName: Brasa
-  Type: 1
+  Id: 4
+  MoveName: Jato de Agua
+  Type: 2
   Category: 1
-  Power: 50
+  Power: 40
   Accuracy: 100
   MaxPP: 20
   Priority: 0

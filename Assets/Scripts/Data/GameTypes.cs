@@ -49,6 +49,13 @@ namespace PokeIdle
         Status
     }
 
+    public enum BattlePhase
+    {
+        Searching,
+        Battling,
+        Recovering
+    }
+
     [Serializable]
     public struct BaseStats
     {

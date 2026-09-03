@@ -1,5 +1,19 @@
 # PokeIdle
 
+## Back-end de progressao e economia
+
+O back-end agora possui:
+
+- curva de XP centralizada em `ProgressionRules`, mais lenta para evitar niveis subindo em poucos minutos;
+- inventario persistente com stacks de itens e validacao de dados;
+- catalogo inicial de `Pocao` e `Super Pocao`, com preco e efeito de cura;
+- tabela de drops com chance por derrota e bonus garantido ao concluir uma rota;
+- metodos `TryUseItem` e `TryBuyItem` no `GameLoopManager`, prontos para a futura UI;
+- estado de batalha explicito (`Searching`, `Battling` e `Recovering`);
+- save local atualizado para a versao 2, incluindo o inventario.
+
+Para testar do zero, selecione o objeto `PokeIdleApp`, abra o menu de contexto do componente `GameLoopManager` e use `Reset Progress (Testing)`. Isso substitui o save local atual.
+
 Protótipo de um RPG idle para Windows inspirado na ideia de um jogo na barra de tarefas, usando criaturas placeholder até a criação da identidade visual original.
 
 ## Estado atual
@@ -11,10 +25,17 @@ O primeiro vertical slice contém:
 - atributos básicos, golpes físicos/especiais e tabela de efetividade dos 18 tipos;
 - ganho de XP, níveis, ouro e progresso de rota;
 - salvamento local em JSON;
-- UI temporária de 48 px com HP, inimigo, recompensas, pausa e salvar;
-- arena 2D com câmera, sombras, animação de investida e sprites substituíveis;
-- hordas visuais chegando pelas laterais para reforçar a leitura de ondas;
-- integração Windows isolada para posicionar o build sobre a taskbar.
+- faixa compacta com o Pokemon ativo centralizado e HUD essencial no canto direito;
+- cenário procedural deslizando, inimigos se aproximando em linha reta e hordas visuais;
+- barras de HP sobre o Pokemon do jogador e o inimigo em combate;
+- menu expandido funcional com status, XP, party inicial, inventário, compra/uso de itens e salvar;
+- integração Windows isolada para iniciar compacta, aceitar arraste e expandir o menu para cima.
+
+## Encontros de teste
+
+- `Caterpie` aparece desde o estágio 1;
+- `Squirtle` aparece a partir do estágio 5 e é mais resistente;
+- o golpe `Brasa` do Charmander causa dano reduzido contra o tipo Água.
 
 ## Criar a cena demo
 
@@ -34,9 +55,9 @@ O direcionamento da faixa compacta e do menu expandido está documentado em `doc
 
 ## Próximas fases
 
-1. Validar o vertical slice e balancear o loop.
-2. Adicionar ovos, incubadora e inventário.
-3. Adicionar bosses e captura automática/manual.
-4. Criar telas expandidas de time, PC Box e Pokédex.
+1. Validar o vertical slice em um build Windows compacto.
+2. Evoluir a party para múltiplos Pokemon selecionáveis e troca de líder.
+3. Adicionar ovos, incubadora, bosses e captura automática/manual.
+4. Criar PC Box, Pokédex e rotas com dificuldade/boss.
 5. Substituir placeholders por criaturas e arte originais.
 6. Avaliar PvP somente depois de o modo idle estar estável.

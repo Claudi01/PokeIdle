@@ -6,14 +6,47 @@ namespace PokeIdle
     public sealed class TaskbarIntegration : MonoBehaviour
     {
         [SerializeField] private bool applyOnStart = true;
-        [SerializeField, Min(1)] private int fallbackHeight = 48;
+        [SerializeField, Min(320)] private int fallbackWidth = 720;
+        [SerializeField, Min(48)] private int fallbackHeight = 96;
+        [SerializeField, Min(160)] private int expandedHeight = 360;
+        [SerializeField] private bool allowWindowDrag = true;
+        [SerializeField, Min(1)] private int dragHandleHeight = 22;
+
+        public static TaskbarIntegration Instance { get; private set; }
+        private int collapsedWindowHeight;
 
         private void Start()
         {
+            Instance = this;
             if (applyOnStart)
             {
                 StartCoroutine(ApplyOnNextFrame());
             }
+        }
+
+        private void OnDestroy()
+        {
+            if (Instance == this)
+            {
+                Instance = null;
+            }
+        }
+
+        private void Update()
+        {
+#if UNITY_STANDALONE_WIN && !UNITY_EDITOR
+            if (!allowWindowDrag || !Input.GetMouseButtonDown(0) || Screen.height <= dragHandleHeight)
+            {
+                return;
+            }
+
+            // A faixa superior esquerda fica livre para arrastar a janela sem bloquear os botoes.
+            bool isDragHandle = Input.mousePosition.y >= Screen.height - dragHandleHeight && Input.mousePosition.x < Screen.width - 280f;
+            if (isDragHandle)
+            {
+                BeginWindowDrag();
+            }
+#endif
         }
 
         public void Apply()
@@ -41,6 +74,8 @@ namespace PokeIdle
         private const uint SWP_NOACTIVATE = 0x0010;
         private const uint SWP_SHOWWINDOW = 0x0040;
         private const int SW_SHOWNOACTIVATE = 4;
+        private const uint WM_NCLBUTTONDOWN = 0x00A1;
+        private const int HTCAPTION = 2;
 
         private static readonly System.IntPtr HWND_TOPMOST = new System.IntPtr(-1);
         private static readonly System.IntPtr HWND_TOP = new System.IntPtr(0);
@@ -81,6 +116,12 @@ namespace PokeIdle
         [System.Runtime.InteropServices.DllImport("user32.dll")]
         private static extern bool ShowWindow(System.IntPtr hWnd, int command);
 
+        [System.Runtime.InteropServices.DllImport("user32.dll")]
+        private static extern bool ReleaseCapture();
+
+        [System.Runtime.InteropServices.DllImport("user32.dll")]
+        private static extern System.IntPtr SendMessage(System.IntPtr hWnd, uint message, System.IntPtr wParam, System.IntPtr lParam);
+
         private void ApplyWindowsTaskbarLayout()
         {
             System.IntPtr windowHandle = GetActiveWindow();
@@ -91,13 +132,19 @@ namespace PokeIdle
             }
 
             System.IntPtr taskbarHandle = FindWindow("Shell_TrayWnd", null);
-            Rect taskbarRect;
+            Rect taskbarRect = new Rect();
             bool hasTaskbarRect = taskbarHandle != System.IntPtr.Zero && GetWindowRect(taskbarHandle, out taskbarRect);
 
-            int x = hasTaskbarRect ? taskbarRect.Left : 0;
-            int y = hasTaskbarRect ? taskbarRect.Top : Screen.currentResolution.height - fallbackHeight;
-            int width = hasTaskbarRect ? taskbarRect.Right - taskbarRect.Left : Screen.currentResolution.width;
-            int height = hasTaskbarRect ? taskbarRect.Bottom - taskbarRect.Top : fallbackHeight;
+            int availableWidth = hasTaskbarRect ? taskbarRect.Right - taskbarRect.Left : Screen.currentResolution.width;
+            int width = Mathf.Min(fallbackWidth, Mathf.Max(320, availableWidth));
+            int height = Mathf.Max(48, fallbackHeight);
+            int x = hasTaskbarRect
+                ? taskbarRect.Left + Mathf.Max(0, (availableWidth - width) / 2)
+                : Mathf.Max(0, (Screen.currentResolution.width - width) / 2);
+            int y = hasTaskbarRect
+                ? taskbarRect.Top - height
+                : Screen.currentResolution.height - height;
+            collapsedWindowHeight = height;
 
             long style = GetWindowLong(windowHandle, GWL_STYLE).ToInt64();
             style = (style & ~WS_OVERLAPPEDWINDOW) | WS_POPUP;
@@ -121,6 +168,44 @@ namespace PokeIdle
         {
             return System.IntPtr.Size == 8 ? SetWindowLongPtr64(handle, index, value) : new System.IntPtr(SetWindowLong32(handle, index, value.ToInt32()));
         }
+
+        private void BeginWindowDrag()
+        {
+            System.IntPtr windowHandle = GetActiveWindow();
+            if (windowHandle == System.IntPtr.Zero)
+            {
+                return;
+            }
+
+            ReleaseCapture();
+            SendMessage(windowHandle, WM_NCLBUTTONDOWN, new System.IntPtr(HTCAPTION), System.IntPtr.Zero);
+        }
+
+        private void ResizeWindowsTaskbarWindow(bool expanded)
+        {
+            System.IntPtr windowHandle = GetActiveWindow();
+            Rect currentRect;
+            if (windowHandle == System.IntPtr.Zero || !GetWindowRect(windowHandle, out currentRect))
+            {
+                return;
+            }
+
+            int width = currentRect.Right - currentRect.Left;
+            int bottom = currentRect.Bottom;
+            int targetHeight = expanded
+                ? Mathf.Max(expandedHeight, collapsedWindowHeight)
+                : Mathf.Max(48, collapsedWindowHeight);
+
+            Screen.SetResolution(width, targetHeight, FullScreenMode.Windowed);
+            SetWindowPos(windowHandle, HWND_TOPMOST, currentRect.Left, bottom - targetHeight, width, targetHeight, SWP_NOACTIVATE | SWP_SHOWWINDOW);
+        }
 #endif
+
+        public void SetMenuExpanded(bool expanded)
+        {
+#if UNITY_STANDALONE_WIN && !UNITY_EDITOR
+            ResizeWindowsTaskbarWindow(expanded);
+#endif
+        }
     }
 }

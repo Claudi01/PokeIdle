@@ -47,7 +47,16 @@ namespace PokeIdle
 
         public int ExperienceToNextLevel
         {
-            get { return 20 + Level * 10; }
+            get { return ProgressionRules.GetExperienceToNextLevel(Level); }
+        }
+
+        public float ExperienceProgress
+        {
+            get
+            {
+                int required = ExperienceToNextLevel;
+                return required <= 0 ? 0f : Mathf.Clamp01((float)Experience / required);
+            }
         }
 
         public void EnsureValid()
@@ -68,6 +77,13 @@ namespace PokeIdle
         public void HealFull()
         {
             CurrentHP = MaxHP;
+        }
+
+        public int Heal(int amount)
+        {
+            int previousHP = CurrentHP;
+            CurrentHP = Mathf.Clamp(CurrentHP + Mathf.Max(0, amount), 0, MaxHP);
+            return CurrentHP - previousHP;
         }
 
         public bool GainExperience(int amount)

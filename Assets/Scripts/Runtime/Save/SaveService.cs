@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using UnityEngine;
 
@@ -16,12 +17,13 @@ namespace PokeIdle
     [Serializable]
     public sealed class PlayerSaveData
     {
-        public int Version = 1;
+        public int Version = ProgressionRules.SaveVersion;
         public int Gold;
         public int TotalDefeated;
         public int RouteNumber = 1;
         public int RouteProgress;
         public CreatureSaveData ActiveCreature;
+        public List<InventoryItemStack> Inventory = new List<InventoryItemStack>();
     }
 
     public static class SaveService

@@ -140,8 +140,9 @@ namespace PokeIdle.Editor
             EnsureFolder(DemoRoot, "Creatures");
 
             MoveDefinition quickHit = UpsertMove(DemoMoves + "/QuickHit.asset", 1, "Golpe Rápido", ElementalType.Normal, MoveCategory.Physical, 40);
-            MoveDefinition ember = UpsertMove(DemoMoves + "/Ember.asset", 2, "Brasa", ElementalType.Fire, MoveCategory.Special, 45);
+            MoveDefinition ember = UpsertMove(DemoMoves + "/Ember.asset", 2, "Brasa", ElementalType.Fire, MoveCategory.Special, 50);
             MoveDefinition tackle = UpsertMove(DemoMoves + "/Tackle.asset", 3, "Investida", ElementalType.Normal, MoveCategory.Physical, 40);
+            MoveDefinition waterGun = UpsertMove(DemoMoves + "/WaterGun.asset", 4, "Jato de Agua", ElementalType.Water, MoveCategory.Special, 40);
 
             CreatureDefinition starter = UpsertCreature(
                 DemoCreatures + "/Ember.asset",
@@ -161,6 +162,15 @@ namespace PokeIdle.Editor
                 FarmClass.Attacker,
                 new BaseStats(38, 48, 35, 30, 35, 45),
                 new LearnableMove(1, tackle));
+
+            UpsertCreature(
+                DemoCreatures + "/Squirtle.asset",
+                7,
+                "Squirtle",
+                ElementalType.Water,
+                FarmClass.Tank,
+                new BaseStats(44, 48, 65, 50, 64, 43),
+                new LearnableMove(1, waterGun));
 
             EditorUtility.SetDirty(starter);
             AssetDatabase.SaveAssets();

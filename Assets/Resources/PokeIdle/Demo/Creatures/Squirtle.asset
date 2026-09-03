@@ -10,27 +10,27 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 0981b36316b7b894bb996f2d6fe3ff29, type: 3}
-  m_Name: Buglet
+  m_Name: Squirtle
   m_EditorClassIdentifier: Assembly-CSharp::PokeIdle.CreatureDefinition
-  Id: 10
-  CreatureName: Caterpie
-  PrimaryType: 11
+  Id: 7
+  CreatureName: Squirtle
+  PrimaryType: 2
   HasSecondaryType: 0
   SecondaryType: 0
-  FarmAI: 1
+  FarmAI: 0
   BaseRarity: 0
   BaseStats:
-    HP: 38
+    HP: 44
     Attack: 48
-    Defense: 35
-    SpAttack: 30
-    SpDefense: 35
-    Speed: 45
-  SpriteFront: {fileID: 21300000, guid: 82ca32437a5b5d54792f0b661dcb11b5, type: 3}
-  SpriteBack: {fileID: 21300000, guid: eaf2c66860456b6469e642e710ae316c, type: 3}
-  Icon: {fileID: 21300000, guid: 82ca32437a5b5d54792f0b661dcb11b5, type: 3}
+    Defense: 65
+    SpAttack: 50
+    SpDefense: 64
+    Speed: 43
+  SpriteFront: {fileID: 21300000, guid: ee6e9f7892d041b8a4a862c026b29218, type: 3}
+  SpriteBack: {fileID: 21300000, guid: 10c96390e6c34012ac1c1c9a92043b19, type: 3}
+  Icon: {fileID: 21300000, guid: ee6e9f7892d041b8a4a862c026b29218, type: 3}
   Learnset:
   - Level: 1
-    Move: {fileID: 11400000, guid: 321f195b1f5b3ae4985309c586619cba, type: 2}
+    Move: {fileID: 11400000, guid: 63940af50f0e437cba361e5faa14dc4f, type: 2}
   EvolutionTarget: {fileID: 0}
   EvolutionLevel: 0
