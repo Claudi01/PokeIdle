@@ -467,9 +467,11 @@ namespace PokeIdle
             GUI.DrawTexture(barRect, Texture2D.whiteTexture);
             GUI.color = fillColor;
             GUI.DrawTexture(new Rect(barRect.x + 1f, barRect.y + 1f, Mathf.Max(0f, (barRect.width - 2f) * ratio), Mathf.Max(1f, barRect.height - 2f)), Texture2D.whiteTexture);
-            if (Screen.height >= 100)
+            if (creature.IsBoss || Screen.height >= 100)
             {
-                GUI.Label(new Rect(barRect.x, barRect.y - 13f, barRect.width, 13f), creature.Definition.CreatureName + " Nv " + creature.Level, healthBarLabelStyle);
+                string label = creature.IsBoss ? "BOSS  " : string.Empty;
+                label += creature.Definition.CreatureName + " Nv " + creature.Level;
+                GUI.Label(new Rect(barRect.x, barRect.y - 13f, barRect.width, 13f), label, healthBarLabelStyle);
             }
 
             GUI.color = previousColor;

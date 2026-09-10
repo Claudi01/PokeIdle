@@ -6,27 +6,34 @@ namespace PokeIdle
 {
     public sealed class GameLoopManager : MonoBehaviour
     {
-        [SerializeField, Min(0.1f)] private float tickIntervalSeconds = 1f;
-        [SerializeField, Min(1)] private int enemiesPerRoute = 10;
+        [SerializeField] private GameBalanceConfig balanceConfig;
 
         private DemoContentSet content;
         private AutoBattleEngine battleEngine;
         private PlayerInventory inventory = new PlayerInventory();
         private float tickTimer;
         private bool initialized;
+        private bool hasRetryPhase;
+        private int retryWorldNumber = 1;
+        private int retryPhaseNumber;
 
         public static GameLoopManager Instance { get; private set; }
         public CreatureInstance PlayerCreature { get; private set; }
         public CreatureInstance CurrentEnemy { get; private set; }
         public int Gold { get; private set; }
         public int TotalDefeated { get; private set; }
-        public int RouteNumber { get; private set; } = 1;
-        public int StageNumber { get { return RouteNumber; } }
-        public int RouteProgress { get; private set; }
-        public int EnemiesPerRoute { get { return enemiesPerRoute; } }
+        public int WorldNumber { get; private set; } = 1;
+        public int StageNumber { get { return WorldNumber; } }
+        public int PhaseNumber { get; private set; }
+        public int EncounterProgress { get; private set; }
+        public int PhasesPerWorld { get { return ProgressionRules.GetPhasesPerWorld(); } }
+        public int EnemiesPerPhase { get { return ProgressionRules.GetEnemiesPerPhase(); } }
         public bool IsPaused { get; private set; }
         public BattlePhase Phase { get; private set; } = BattlePhase.Searching;
         public PlayerInventory Inventory { get { return inventory; } }
+        public bool CanReturnToFailedPhase { get { return hasRetryPhase; } }
+        public string CurrentPhaseLabel { get { return FormatPhaseLabel(WorldNumber, PhaseNumber); } }
+        public string FailedPhaseLabel { get { return FormatPhaseLabel(retryWorldNumber, retryPhaseNumber); } }
         public string LastEvent { get; private set; } = "Preparando a expedicao...";
 
         public event Action StateChanged;
@@ -41,7 +48,13 @@ namespace PokeIdle
             }
 
             Instance = this;
+            ProgressionRules.SetBalanceConfig(balanceConfig);
             battleEngine = new AutoBattleEngine();
+        }
+
+        private void OnValidate()
+        {
+            ProgressionRules.SetBalanceConfig(balanceConfig);
         }
 
         private void Start()
@@ -57,12 +70,12 @@ namespace PokeIdle
             }
 
             tickTimer += Time.unscaledDeltaTime;
-            if (tickTimer < tickIntervalSeconds)
+            if (tickTimer < ProgressionRules.GetTickIntervalSeconds())
             {
                 return;
             }
 
-            tickTimer -= tickIntervalSeconds;
+            tickTimer -= ProgressionRules.GetTickIntervalSeconds();
             ProcessTick();
         }
 
@@ -84,7 +97,7 @@ namespace PokeIdle
             PlayerCreature = new CreatureInstance(
                 content.Starter,
                 save != null && save.ActiveCreature != null
-                    ? save.ActiveCreature.Level
+                    ? Mathf.Max(ProgressionRules.StartingCreatureLevel, save.ActiveCreature.Level)
                     : ProgressionRules.StartingCreatureLevel);
 
             if (save != null && save.ActiveCreature != null && save.ActiveCreature.CreatureId == content.Starter.Id)
@@ -93,11 +106,31 @@ namespace PokeIdle
                 PlayerCreature.CurrentHP = save.ActiveCreature.CurrentHP;
             }
 
+            bool loadedAfterDefeat = save != null
+                && save.ActiveCreature != null
+                && save.ActiveCreature.CreatureId == content.Starter.Id
+                && save.ActiveCreature.CurrentHP <= 0;
             PlayerCreature.EnsureValid();
             Gold = save != null ? Mathf.Max(0, save.Gold) : 0;
             TotalDefeated = save != null ? Mathf.Max(0, save.TotalDefeated) : 0;
-            RouteNumber = save != null ? Mathf.Max(1, save.RouteNumber) : 1;
-            RouteProgress = save != null ? Mathf.Clamp(save.RouteProgress, 0, enemiesPerRoute - 1) : 0;
+            bool usesPhaseProgression = save != null && save.Version >= ProgressionRules.SaveVersion;
+            WorldNumber = usesPhaseProgression
+                ? Mathf.Max(1, save.WorldNumber)
+                : save != null ? Mathf.Max(1, save.RouteNumber) : 1;
+            PhaseNumber = usesPhaseProgression
+                ? Mathf.Max(0, save.PhaseNumber)
+                : 0;
+            EncounterProgress = usesPhaseProgression
+                ? Mathf.Clamp(save.EncounterProgress, 0, EnemiesPerPhase - 1)
+                : save != null ? Mathf.Clamp(save.RouteProgress, 0, EnemiesPerPhase - 1) : 0;
+            if (loadedAfterDefeat)
+            {
+                EncounterProgress = 0;
+            }
+
+            hasRetryPhase = usesPhaseProgression && save.HasRetryPhase;
+            retryWorldNumber = usesPhaseProgression ? Mathf.Max(1, save.RetryWorldNumber) : 1;
+            retryPhaseNumber = usesPhaseProgression ? Mathf.Max(0, save.RetryPhaseNumber) : 0;
 
             inventory = new PlayerInventory();
             if (save != null && save.Inventory != null)
@@ -118,6 +151,12 @@ namespace PokeIdle
             LastEvent = "Expedicao iniciada. O combate acontece a cada segundo.";
             NotifyInventoryChanged();
             NotifyStateChanged();
+        }
+
+        public void ConfigureBalance(GameBalanceConfig config)
+        {
+            balanceConfig = config;
+            ProgressionRules.SetBalanceConfig(balanceConfig);
         }
 
         public void TogglePause()
@@ -161,8 +200,12 @@ namespace PokeIdle
             CurrentEnemy = null;
             Gold = 0;
             TotalDefeated = 0;
-            RouteNumber = 1;
-            RouteProgress = 0;
+            WorldNumber = 1;
+            PhaseNumber = 0;
+            EncounterProgress = 0;
+            hasRetryPhase = false;
+            retryWorldNumber = 1;
+            retryPhaseNumber = 0;
             Phase = BattlePhase.Searching;
             IsPaused = false;
             tickTimer = 0f;
@@ -184,11 +227,7 @@ namespace PokeIdle
 
             if (PlayerCreature.IsFainted)
             {
-                Phase = BattlePhase.Recovering;
-                PlayerCreature.HealFull();
-                LastEvent = PlayerCreature.Definition.CreatureName + " se recuperou e voltou ao combate.";
-                SaveNowSilently();
-                NotifyStateChanged();
+                HandlePlayerDefeat();
                 return;
             }
 
@@ -212,6 +251,12 @@ namespace PokeIdle
                 LastEvent += " | " + enemyAttack.Message;
             }
 
+            if (PlayerCreature.IsFainted)
+            {
+                HandlePlayerDefeat();
+                return;
+            }
+
             if (CurrentEnemy.IsFainted)
             {
                 RewardEnemyDefeat();
@@ -223,63 +268,135 @@ namespace PokeIdle
 
         private void SpawnEnemy()
         {
-            CreatureDefinition wildCreature = SelectWildCreature();
+            bool isBoss = EncounterProgress >= EnemiesPerPhase - 1;
+            CreatureDefinition wildCreature = isBoss ? SelectBossCreature() : SelectWildCreature();
             if (wildCreature == null)
             {
-                LastEvent = "Nenhum encontro esta configurado para este estagio.";
+                LastEvent = "Nenhum encontro esta configurado para esta fase.";
                 return;
             }
 
-            int enemyLevel = Mathf.Max(1, 3 + RouteNumber + RouteProgress / 3);
-            CurrentEnemy = new CreatureInstance(wildCreature, enemyLevel);
+            int enemyLevel = ProgressionRules.GetEnemyLevel(WorldNumber, isBoss);
+            CurrentEnemy = new CreatureInstance(wildCreature, enemyLevel, isBoss);
             Phase = BattlePhase.Searching;
-            LastEvent = "Um " + CurrentEnemy.Definition.CreatureName + " apareceu na rota.";
+            LastEvent = isBoss
+                ? "Um BOSS " + CurrentEnemy.Definition.CreatureName + " apareceu no final da fase " + CurrentPhaseLabel + "."
+                : "Um " + CurrentEnemy.Definition.CreatureName + " apareceu na fase " + CurrentPhaseLabel + ".";
         }
 
         private CreatureDefinition SelectWildCreature()
         {
-            if (content == null)
+            WildCreatureEncounter encounter = SelectWildEncounter();
+            return encounter != null && encounter.Creature != null
+                ? encounter.Creature
+                : content == null ? null : content.WildCreature;
+        }
+
+        private CreatureDefinition SelectBossCreature()
+        {
+            WildCreatureEncounter dominantEncounter = SelectDominantEncounter();
+            if (dominantEncounter == null || dominantEncounter.Creature == null)
+            {
+                return content == null ? null : content.WildCreature;
+            }
+
+            return dominantEncounter.Creature.EvolutionTarget != null
+                ? dominantEncounter.Creature.EvolutionTarget
+                : dominantEncounter.Creature;
+        }
+
+        private WildCreatureEncounter SelectWildEncounter()
+        {
+            List<WildCreatureEncounter> availableEncounters = GetAvailableEncounters();
+            if (availableEncounters.Count == 0)
             {
                 return null;
             }
 
-            if (content.WildEncounters == null || content.WildEncounters.Count == 0)
+            int totalWeight = 0;
+            for (int i = 0; i < availableEncounters.Count; i++)
             {
-                return content.WildCreature;
+                totalWeight += Mathf.Max(1, availableEncounters[i].SpawnWeight);
             }
 
-            var availableCreatures = new List<CreatureDefinition>();
+            int roll = UnityEngine.Random.Range(0, totalWeight);
+            for (int i = 0; i < availableEncounters.Count; i++)
+            {
+                roll -= Mathf.Max(1, availableEncounters[i].SpawnWeight);
+                if (roll < 0)
+                {
+                    return availableEncounters[i];
+                }
+            }
+
+            return availableEncounters[availableEncounters.Count - 1];
+        }
+
+        private WildCreatureEncounter SelectDominantEncounter()
+        {
+            List<WildCreatureEncounter> availableEncounters = GetAvailableEncounters();
+            WildCreatureEncounter dominantEncounter = null;
+            for (int i = 0; i < availableEncounters.Count; i++)
+            {
+                WildCreatureEncounter encounter = availableEncounters[i];
+                if (dominantEncounter == null || encounter.SpawnWeight > dominantEncounter.SpawnWeight)
+                {
+                    dominantEncounter = encounter;
+                }
+            }
+
+            return dominantEncounter;
+        }
+
+        private List<WildCreatureEncounter> GetAvailableEncounters()
+        {
+            var availableEncounters = new List<WildCreatureEncounter>();
+            if (content == null)
+            {
+                return availableEncounters;
+            }
+
+            if (content.WildEncounters == null || content.WildEncounters.Count == 0)
+            {
+                if (content.WildCreature != null)
+                {
+                    availableEncounters.Add(new WildCreatureEncounter(content.WildCreature, 1));
+                }
+
+                return availableEncounters;
+            }
+
             for (int i = 0; i < content.WildEncounters.Count; i++)
             {
                 WildCreatureEncounter encounter = content.WildEncounters[i];
                 if (encounter != null && encounter.Creature != null && StageNumber >= encounter.MinimumStage)
                 {
-                    availableCreatures.Add(encounter.Creature);
+                    availableEncounters.Add(encounter);
                 }
             }
 
-            if (availableCreatures.Count == 0)
+            if (availableEncounters.Count == 0 && content.WildCreature != null)
             {
-                return content.WildCreature;
+                availableEncounters.Add(new WildCreatureEncounter(content.WildCreature, 1));
             }
 
-            return availableCreatures[UnityEngine.Random.Range(0, availableCreatures.Count)];
+            return availableEncounters;
         }
 
         private void RewardEnemyDefeat()
         {
             int defeatedLevel = CurrentEnemy.Level;
-            int routeAtDefeat = RouteNumber;
-            int goldReward = ProgressionRules.GetGoldReward(defeatedLevel, routeAtDefeat);
-            int experienceReward = ProgressionRules.GetExperienceReward(defeatedLevel, routeAtDefeat);
+            int worldAtDefeat = WorldNumber;
+            int goldReward = ProgressionRules.GetGoldReward(defeatedLevel, worldAtDefeat);
+            int experienceReward = ProgressionRules.GetExperienceReward(defeatedLevel, worldAtDefeat);
             bool leveledUp = PlayerCreature.GainExperience(experienceReward);
 
             Gold += goldReward;
             TotalDefeated++;
-            RouteProgress++;
+            EncounterProgress++;
             LastEvent += " Recompensas: +" + goldReward + " ouro, +" + experienceReward + " XP.";
 
-            List<InventoryItemStack> drops = LootTable.RollDrops(defeatedLevel, routeAtDefeat);
+            List<InventoryItemStack> drops = LootTable.RollDrops(defeatedLevel, worldAtDefeat);
             for (int i = 0; i < drops.Count; i++)
             {
                 InventoryItemStack drop = drops[i];
@@ -301,18 +418,101 @@ namespace PokeIdle
                 LastEvent += " " + PlayerCreature.Definition.CreatureName + " alcancou o nivel " + PlayerCreature.Level + ".";
             }
 
-            if (RouteProgress >= enemiesPerRoute)
+            if (EncounterProgress >= EnemiesPerPhase)
             {
-                RouteNumber++;
-                RouteProgress = 0;
+                AdvanceToNextPhase();
                 inventory.Add(InventoryItemId.Potion, 1);
-                LastEvent += " Rota concluida! Proxima rota desbloqueada.";
-                LastEvent += " Bonus da rota: +1 Pocao.";
+                LastEvent += " Fase concluida! Proxima fase desbloqueada e HP restaurado.";
+                LastEvent += " Bonus da fase: +1 Pocao.";
                 NotifyInventoryChanged();
             }
 
             // Mantem o inimigo derrotado ate o proximo tick para evitar um frame vazio.
             Phase = BattlePhase.Searching;
+        }
+
+        private void AdvanceToNextPhase()
+        {
+            if (PhaseNumber < PhasesPerWorld)
+            {
+                PhaseNumber++;
+            }
+            else
+            {
+                WorldNumber++;
+                PhaseNumber = 1;
+            }
+
+            EncounterProgress = 0;
+            PlayerCreature.HealFull();
+            if (hasRetryPhase && IsPhaseAtOrAfter(WorldNumber, PhaseNumber, retryWorldNumber, retryPhaseNumber))
+            {
+                hasRetryPhase = false;
+            }
+        }
+
+        private void HandlePlayerDefeat()
+        {
+            int failedWorld = WorldNumber;
+            int failedPhase = PhaseNumber;
+            int previousWorld = WorldNumber;
+            int previousPhase = PhaseNumber;
+
+            if (previousPhase > 1)
+            {
+                previousPhase--;
+            }
+            else if (previousWorld > 1)
+            {
+                previousWorld--;
+                previousPhase = PhasesPerWorld;
+            }
+            else if (previousPhase == 1)
+            {
+                previousPhase = 0;
+            }
+
+            hasRetryPhase = previousWorld != failedWorld || previousPhase != failedPhase;
+            if (hasRetryPhase)
+            {
+                retryWorldNumber = failedWorld;
+                retryPhaseNumber = failedPhase;
+            }
+
+            WorldNumber = previousWorld;
+            PhaseNumber = previousPhase;
+            EncounterProgress = 0;
+            CurrentEnemy = null;
+            Phase = BattlePhase.Recovering;
+            PlayerCreature.HealFull();
+
+            LastEvent = PlayerCreature.Definition.CreatureName + " foi derrotado. ";
+            LastEvent += hasRetryPhase
+                ? "Retornou para a fase " + CurrentPhaseLabel + ". Você pode tentar novamente a fase " + FailedPhaseLabel + "."
+                : "Permaneceu na fase " + CurrentPhaseLabel + ".";
+
+            SaveNowSilently();
+            NotifyStateChanged();
+        }
+
+        public bool ReturnToFailedPhase()
+        {
+            if (!initialized || !hasRetryPhase || PlayerCreature == null)
+            {
+                return false;
+            }
+
+            WorldNumber = retryWorldNumber;
+            PhaseNumber = retryPhaseNumber;
+            EncounterProgress = 0;
+            hasRetryPhase = false;
+            CurrentEnemy = null;
+            Phase = BattlePhase.Recovering;
+            PlayerCreature.HealFull();
+            LastEvent = "Retomando a fase " + CurrentPhaseLabel + ".";
+            SaveNowSilently();
+            NotifyStateChanged();
+            return true;
         }
 
         public int GetItemQuantity(InventoryItemId itemId)
@@ -395,8 +595,12 @@ namespace PokeIdle
             {
                 Gold = Gold,
                 TotalDefeated = TotalDefeated,
-                RouteNumber = RouteNumber,
-                RouteProgress = RouteProgress,
+                WorldNumber = WorldNumber,
+                PhaseNumber = PhaseNumber,
+                EncounterProgress = EncounterProgress,
+                HasRetryPhase = hasRetryPhase,
+                RetryWorldNumber = retryWorldNumber,
+                RetryPhaseNumber = retryPhaseNumber,
                 ActiveCreature = new CreatureSaveData
                 {
                     CreatureId = PlayerCreature.Definition != null ? PlayerCreature.Definition.Id : 0,
@@ -441,6 +645,17 @@ namespace PokeIdle
             {
                 StateChanged.Invoke();
             }
+        }
+
+        private static string FormatPhaseLabel(int worldNumber, int phaseNumber)
+        {
+            return Mathf.Max(1, worldNumber) + "-" + Mathf.Max(0, phaseNumber);
+        }
+
+        private static bool IsPhaseAtOrAfter(int worldNumber, int phaseNumber, int otherWorldNumber, int otherPhaseNumber)
+        {
+            return worldNumber > otherWorldNumber
+                || (worldNumber == otherWorldNumber && phaseNumber >= otherPhaseNumber);
         }
     }
 }

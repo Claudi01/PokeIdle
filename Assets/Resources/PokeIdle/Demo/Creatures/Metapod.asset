@@ -10,28 +10,28 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 0981b36316b7b894bb996f2d6fe3ff29, type: 3}
-  m_Name: Buglet
+  m_Name: Metapod
   m_EditorClassIdentifier: Assembly-CSharp::PokeIdle.CreatureDefinition
-  Id: 10
-  CreatureName: Caterpie
+  Id: 11
+  CreatureName: Metapod
   PrimaryType: 11
   HasSecondaryType: 0
   SecondaryType: 0
-  FarmAI: 1
+  FarmAI: 0
   BaseRarity: 0
-  WildSpawnWeight: 6
+  WildSpawnWeight: 1
   BaseStats:
-    HP: 38
-    Attack: 48
-    Defense: 35
-    SpAttack: 30
+    HP: 50
+    Attack: 35
+    Defense: 55
+    SpAttack: 25
     SpDefense: 35
-    Speed: 45
-  SpriteFront: {fileID: 21300000, guid: 82ca32437a5b5d54792f0b661dcb11b5, type: 3}
-  SpriteBack: {fileID: 21300000, guid: eaf2c66860456b6469e642e710ae316c, type: 3}
-  Icon: {fileID: 21300000, guid: 82ca32437a5b5d54792f0b661dcb11b5, type: 3}
+    Speed: 30
+  SpriteFront: {fileID: 21300000, guid: 70e6026c7d134e0a8ca80c1f7c7a7385, type: 3}
+  SpriteBack: {fileID: 21300000, guid: d97448fbc633401a9cf5e2f1d419f5a6, type: 3}
+  Icon: {fileID: 21300000, guid: 70e6026c7d134e0a8ca80c1f7c7a7385, type: 3}
   Learnset:
   - Level: 1
     Move: {fileID: 11400000, guid: 321f195b1f5b3ae4985309c586619cba, type: 2}
-  EvolutionTarget: {fileID: 11400000, guid: 940d70ae74814a5494fb84d470fe5236, type: 2}
-  EvolutionLevel: 7
+  EvolutionTarget: {fileID: 0}
+  EvolutionLevel: 0

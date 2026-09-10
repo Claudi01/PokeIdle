@@ -78,13 +78,14 @@ namespace PokeIdle
         {
             float hudWidth = Mathf.Clamp(Screen.width * 0.3f, 205f, 265f);
             hudWidth = Mathf.Min(hudWidth, Screen.width - 12f);
-            float hudHeight = Mathf.Min(46f, Mathf.Max(34f, Screen.height - 12f));
+            float desiredHeight = loop.CanReturnToFailedPhase ? 72f : 46f;
+            float hudHeight = Mathf.Min(desiredHeight, Mathf.Max(34f, Screen.height - 12f));
             Rect panel = new Rect(Screen.width - hudWidth - 6f, 6f, hudWidth, hudHeight);
             DrawPanel(panel, new Color(0.025f, 0.04f, 0.07f, 0.9f));
 
             float contentWidth = panel.width - 78f;
             GUI.Label(new Rect(panel.x + 8f, panel.y + 3f, contentWidth, 16f),
-                "ESTAGIO " + loop.StageNumber + "  " + loop.RouteProgress + "/" + loop.EnemiesPerRoute,
+                "FASE " + loop.CurrentPhaseLabel,
                 labelStyle);
             GUI.Label(new Rect(panel.x + 8f, panel.y + 21f, contentWidth, 16f),
                 "Ouro " + loop.Gold + "  |  KOs " + loop.TotalDefeated,
@@ -94,6 +95,14 @@ namespace PokeIdle
             if (GUI.Button(new Rect(buttonX, panel.y + 5f, 60f, 27f), menuOpen ? "FECHAR" : "MENU", buttonStyle))
             {
                 SetMenuOpen(!menuOpen);
+            }
+
+            if (loop.CanReturnToFailedPhase && hudHeight >= 65f)
+            {
+                if (GUI.Button(new Rect(panel.x + 8f, panel.y + 43f, panel.width - 16f, 23f), "TENTAR FASE " + loop.FailedPhaseLabel, buttonStyle))
+                {
+                    loop.ReturnToFailedPhase();
+                }
             }
         }
 
@@ -117,6 +126,17 @@ namespace PokeIdle
             float y = panel.y + 38f;
             CreatureInstance player = loop.PlayerCreature;
             BaseStats stats = player.Stats;
+
+            if (loop.CanReturnToFailedPhase)
+            {
+                if (GUI.Button(new Rect(x, y, width, 26f), "TENTAR FASE " + loop.FailedPhaseLabel, buttonStyle))
+                {
+                    loop.ReturnToFailedPhase();
+                    return;
+                }
+
+                y += 32f;
+            }
 
             GUI.Label(new Rect(x, y, width, 18f), "POKEMON ATIVO  |  LIDER DA PARTY", sectionStyle);
             y += 22f;

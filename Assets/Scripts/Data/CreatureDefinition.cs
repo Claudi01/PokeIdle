@@ -15,6 +15,9 @@ namespace PokeIdle
         public FarmClass FarmAI = FarmClass.Attacker;
         public Rarity BaseRarity = Rarity.Common;
 
+        [Header("Encounter")]
+        [Min(1)] public int WildSpawnWeight = 1;
+
         [Header("Base stats")]
         public BaseStats BaseStats;
 

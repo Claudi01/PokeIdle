@@ -22,6 +22,14 @@ namespace PokeIdle
         public int TotalDefeated;
         public int RouteNumber = 1;
         public int RouteProgress;
+        public int WorldNumber = 1;
+        public int PhaseNumber;
+        public int EncounterProgress;
+        public bool HasRetryPhase;
+        public int RetryRouteNumber = 1;
+        public int RetryRouteProgress;
+        public int RetryWorldNumber = 1;
+        public int RetryPhaseNumber;
         public CreatureSaveData ActiveCreature;
         public List<InventoryItemStack> Inventory = new List<InventoryItemStack>();
     }

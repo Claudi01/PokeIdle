@@ -10,28 +10,28 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 0981b36316b7b894bb996f2d6fe3ff29, type: 3}
-  m_Name: Squirtle
+  m_Name: Pidgey
   m_EditorClassIdentifier: Assembly-CSharp::PokeIdle.CreatureDefinition
-  Id: 7
-  CreatureName: Squirtle
-  PrimaryType: 2
+  Id: 16
+  CreatureName: Pidgey
+  PrimaryType: 9
   HasSecondaryType: 0
   SecondaryType: 0
-  FarmAI: 0
+  FarmAI: 3
   BaseRarity: 0
-  WildSpawnWeight: 1
+  WildSpawnWeight: 2
   BaseStats:
-    HP: 44
-    Attack: 48
-    Defense: 65
-    SpAttack: 50
-    SpDefense: 64
-    Speed: 43
-  SpriteFront: {fileID: 21300000, guid: ee6e9f7892d041b8a4a862c026b29218, type: 3}
-  SpriteBack: {fileID: 21300000, guid: 10c96390e6c34012ac1c1c9a92043b19, type: 3}
-  Icon: {fileID: 21300000, guid: ee6e9f7892d041b8a4a862c026b29218, type: 3}
+    HP: 40
+    Attack: 45
+    Defense: 40
+    SpAttack: 35
+    SpDefense: 35
+    Speed: 56
+  SpriteFront: {fileID: 21300000, guid: f0b0977223d1415ca53e435b761a1a9f, type: 3}
+  SpriteBack: {fileID: 21300000, guid: 6d5ada80fe28435fa6defc4a13c33825, type: 3}
+  Icon: {fileID: 21300000, guid: f0b0977223d1415ca53e435b761a1a9f, type: 3}
   Learnset:
   - Level: 1
-    Move: {fileID: 11400000, guid: 63940af50f0e437cba361e5faa14dc4f, type: 2}
+    Move: {fileID: 11400000, guid: e484885c912a4ff099e45e541adddf92, type: 2}
   EvolutionTarget: {fileID: 0}
   EvolutionLevel: 0

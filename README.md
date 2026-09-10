@@ -4,13 +4,14 @@
 
 O back-end agora possui:
 
+- configuracao de balanceamento editavel pelo Inspector em `Assets/Resources/PokeIdle/Config/GameBalanceConfig.asset`;
 - curva de XP centralizada em `ProgressionRules`, mais lenta para evitar niveis subindo em poucos minutos;
 - inventario persistente com stacks de itens e validacao de dados;
 - catalogo inicial de `Pocao` e `Super Pocao`, com preco e efeito de cura;
-- tabela de drops com chance por derrota e bonus garantido ao concluir uma rota;
+- tabela de drops com chance por derrota e bonus garantido ao concluir uma fase;
 - metodos `TryUseItem` e `TryBuyItem` no `GameLoopManager`, prontos para a futura UI;
 - estado de batalha explicito (`Searching`, `Battling` e `Recovering`);
-- save local atualizado para a versao 2, incluindo o inventario.
+- save local versionado, incluindo inventario e progresso de mundo/fase.
 
 Para testar do zero, selecione o objeto `PokeIdleApp`, abra o menu de contexto do componente `GameLoopManager` e use `Reset Progress (Testing)`. Isso substitui o save local atual.
 
@@ -23,7 +24,11 @@ O primeiro vertical slice contém:
 - loop de combate automático com um tick por segundo;
 - criatura do jogador e inimigo definidos por `ScriptableObject`;
 - atributos básicos, golpes físicos/especiais e tabela de efetividade dos 18 tipos;
-- ganho de XP, níveis, ouro e progresso de rota;
+- ganho de XP, níveis, ouro e progresso por mundo/fase;
+- cada fase possui vários encontros e termina com um BOSS, identificado acima da barra de HP;
+- ao concluir uma fase, o Pokémon ativo começa a próxima com HP cheio;
+- derrota recua para a fase anterior, mantendo as recompensas acumuladas e oferecendo um botão para tentar novamente a fase perdida;
+- balanceamento inicial de teste: Pokémon do jogador e inimigos normais começam no nível 1;
 - salvamento local em JSON;
 - faixa compacta com o Pokemon ativo centralizado e HUD essencial no canto direito;
 - cenário procedural deslizando, inimigos se aproximando em linha reta e hordas visuais;
@@ -33,7 +38,9 @@ O primeiro vertical slice contém:
 
 ## Encontros de teste
 
-- `Caterpie` aparece desde o estágio 1;
+- `Caterpie` aparece desde o estágio 1 com maior peso de aparição;
+- `Metapod` é a evolução usada como BOSS quando Caterpie é o encontro dominante;
+- `Weedle`, `Pidgey` e `Rattata` completam a variedade das primeiras rotas;
 - `Squirtle` aparece a partir do estágio 5 e é mais resistente;
 - o golpe `Brasa` do Charmander causa dano reduzido contra o tipo Água.
 
@@ -47,17 +54,17 @@ Depois, abra `Main.unity` e pressione Play. O build Windows aplicará a integra�
 
 Na Hierarchy, o objeto `PokeIdleApp` contém os componentes principais e os filhos visuais da arena. Se a cena antiga ainda mostrar apenas o objeto raiz, execute novamente `PokeIdle > Create Demo Scene`.
 
-Para mudar o ritmo do jogo, selecione `PokeIdleApp` e edite `Tick Interval Seconds` e `Enemies Per Route` no componente `GameLoopManager`. Para mudar a organização visual, edite os campos do componente `BattleArenaView`.
+Para mudar o ritmo e o balanceamento do jogo, abra `Assets/Resources/PokeIdle/Config/GameBalanceConfig.asset` e edite os campos no Inspector. Para mudar a organização visual, selecione `PokeIdleApp` e edite os campos do componente `BattleArenaView`.
 
 Para trocar os placeholders, importe os PNGs em `Assets/Art/Placeholder` e arraste-os para `Sprite Front` e `Sprite Back` dos assets de criatura em `Assets/Resources/PokeIdle/Demo/Creatures`. Há um guia rápido em `Assets/Art/Placeholder/README.md`.
 
-O direcionamento da faixa compacta e do menu expandido está documentado em `docs/design_direction.md`.
+O direcionamento da faixa compacta e do menu expandido está documentado em `docs/design_direction.md`. As instrucoes para editar o prototipo estão em `docs/editing_guide.md`.
 
 ## Próximas fases
 
 1. Validar o vertical slice em um build Windows compacto.
 2. Evoluir a party para múltiplos Pokemon selecionáveis e troca de líder.
-3. Adicionar ovos, incubadora, bosses e captura automática/manual.
+3. Adicionar ovos, incubadora e captura automática/manual.
 4. Criar PC Box, Pokédex e rotas com dificuldade/boss.
 5. Substituir placeholders por criaturas e arte originais.
 6. Avaliar PvP somente depois de o modo idle estar estável.

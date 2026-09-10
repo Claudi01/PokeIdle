@@ -9,11 +9,18 @@ namespace PokeIdle
     {
         public CreatureDefinition Creature;
         public int MinimumStage;
+        public int SpawnWeight;
 
         public WildCreatureEncounter(CreatureDefinition creature, int minimumStage)
+            : this(creature, minimumStage, 0)
+        {
+        }
+
+        public WildCreatureEncounter(CreatureDefinition creature, int minimumStage, int spawnWeight)
         {
             Creature = creature;
             MinimumStage = Mathf.Max(1, minimumStage);
+            SpawnWeight = Mathf.Max(1, spawnWeight > 0 ? spawnWeight : creature == null ? 1 : creature.WildSpawnWeight);
         }
     }
 
@@ -30,14 +37,28 @@ namespace PokeIdle
         {
             CreatureDefinition starter = Resources.Load<CreatureDefinition>("PokeIdle/Demo/Creatures/Ember");
             CreatureDefinition caterpie = Resources.Load<CreatureDefinition>("PokeIdle/Demo/Creatures/Buglet");
+            CreatureDefinition metapod = Resources.Load<CreatureDefinition>("PokeIdle/Demo/Creatures/Metapod");
+            CreatureDefinition weedle = Resources.Load<CreatureDefinition>("PokeIdle/Demo/Creatures/Weedle");
+            CreatureDefinition pidgey = Resources.Load<CreatureDefinition>("PokeIdle/Demo/Creatures/Pidgey");
+            CreatureDefinition rattata = Resources.Load<CreatureDefinition>("PokeIdle/Demo/Creatures/Rattata");
             CreatureDefinition squirtle = Resources.Load<CreatureDefinition>("PokeIdle/Demo/Creatures/Squirtle");
 
             if (starter != null && caterpie != null)
             {
+                if (caterpie.EvolutionTarget == null && metapod != null)
+                {
+                    caterpie.EvolutionTarget = metapod;
+                    caterpie.EvolutionLevel = 7;
+                }
+
                 var encounters = new List<WildCreatureEncounter>
                 {
                     new WildCreatureEncounter(caterpie, 1)
                 };
+
+                AddEncounterIfAvailable(encounters, weedle, 1);
+                AddEncounterIfAvailable(encounters, pidgey, 1);
+                AddEncounterIfAvailable(encounters, rattata, 1);
 
                 if (squirtle != null)
                 {
@@ -61,6 +82,8 @@ namespace PokeIdle
             MoveDefinition ember = CreateMove("Brasa", ElementalType.Fire, MoveCategory.Special, 50, 2);
             MoveDefinition tackle = CreateMove("Investida", ElementalType.Normal, MoveCategory.Physical, 40, 3);
             MoveDefinition waterGun = CreateMove("Jato de Agua", ElementalType.Water, MoveCategory.Special, 40, 4);
+            MoveDefinition gust = CreateMove("Rajada de Vento", ElementalType.Flying, MoveCategory.Special, 40, 5);
+            MoveDefinition poisonSting = CreateMove("Ferroada", ElementalType.Poison, MoveCategory.Physical, 40, 6);
 
             CreatureDefinition starter = CreateCreature(
                 4,
@@ -79,6 +102,46 @@ namespace PokeIdle
                 new BaseStats(38, 48, 35, 30, 35, 45),
                 new LearnableMove(1, tackle));
 
+            CreatureDefinition metapod = CreateCreature(
+                11,
+                "Metapod",
+                ElementalType.Bug,
+                FarmClass.Tank,
+                new BaseStats(50, 35, 55, 25, 35, 30),
+                new LearnableMove(1, tackle));
+
+            caterpie.EvolutionTarget = metapod;
+            caterpie.EvolutionLevel = 7;
+            caterpie.WildSpawnWeight = 6;
+
+            CreatureDefinition weedle = CreateCreature(
+                13,
+                "Weedle",
+                ElementalType.Bug,
+                FarmClass.Attacker,
+                new BaseStats(40, 35, 30, 20, 20, 50),
+                new LearnableMove(1, poisonSting));
+
+            CreatureDefinition pidgey = CreateCreature(
+                16,
+                "Pidgey",
+                ElementalType.Flying,
+                FarmClass.Speedster,
+                new BaseStats(40, 45, 40, 35, 35, 56),
+                new LearnableMove(1, gust));
+
+            CreatureDefinition rattata = CreateCreature(
+                19,
+                "Rattata",
+                ElementalType.Normal,
+                FarmClass.Attacker,
+                new BaseStats(30, 56, 35, 25, 35, 72),
+                new LearnableMove(1, tackle));
+
+            weedle.WildSpawnWeight = 2;
+            pidgey.WildSpawnWeight = 2;
+            rattata.WildSpawnWeight = 2;
+
             CreatureDefinition squirtle = CreateCreature(
                 7,
                 "Squirtle",
@@ -94,9 +157,23 @@ namespace PokeIdle
                 WildEncounters = new List<WildCreatureEncounter>
                 {
                     new WildCreatureEncounter(caterpie, 1),
+                    new WildCreatureEncounter(weedle, 1),
+                    new WildCreatureEncounter(pidgey, 1),
+                    new WildCreatureEncounter(rattata, 1),
                     new WildCreatureEncounter(squirtle, 5)
                 }
             };
+        }
+
+        private static void AddEncounterIfAvailable(
+            List<WildCreatureEncounter> encounters,
+            CreatureDefinition creature,
+            int minimumStage)
+            {
+            if (creature != null)
+            {
+                encounters.Add(new WildCreatureEncounter(creature, minimumStage));
+            }
         }
 
         private static MoveDefinition CreateMove(string name, ElementalType type, MoveCategory category, int power, int id)

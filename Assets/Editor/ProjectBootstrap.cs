@@ -10,17 +10,21 @@ namespace PokeIdle.Editor
         private const string DemoRoot = "Assets/Resources/PokeIdle/Demo";
         private const string DemoMoves = DemoRoot + "/Moves";
         private const string DemoCreatures = DemoRoot + "/Creatures";
+        private const string ConfigRoot = "Assets/Resources/PokeIdle/Config";
+        private const string BalanceConfigPath = ConfigRoot + "/GameBalanceConfig.asset";
         private const string ScenePath = "Assets/Scenes/Main.unity";
 
         [MenuItem("PokeIdle/Create Demo Scene")]
         public static void CreateDemoScene()
         {
             CreateDemoContent();
+            GameBalanceConfig balanceConfig = CreateOrLoadGameBalanceConfig();
 
             Scene scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
             GameObject app = new GameObject("PokeIdleApp");
             app.AddComponent<PokeIdleApp>();
-            app.AddComponent<GameLoopManager>();
+            GameLoopManager loop = app.AddComponent<GameLoopManager>();
+            loop.ConfigureBalance(balanceConfig);
             app.AddComponent<MainWindowUI>();
             app.AddComponent<TaskbarIntegration>();
 
@@ -55,10 +59,13 @@ namespace PokeIdle.Editor
                 app.AddComponent<PokeIdleApp>();
             }
 
-            if (app.GetComponent<GameLoopManager>() == null)
+            GameLoopManager loop = app.GetComponent<GameLoopManager>();
+            if (loop == null)
             {
-                app.AddComponent<GameLoopManager>();
+                loop = app.AddComponent<GameLoopManager>();
             }
+
+            loop.ConfigureBalance(CreateOrLoadGameBalanceConfig());
 
             if (app.GetComponent<MainWindowUI>() == null)
             {
@@ -143,6 +150,8 @@ namespace PokeIdle.Editor
             MoveDefinition ember = UpsertMove(DemoMoves + "/Ember.asset", 2, "Brasa", ElementalType.Fire, MoveCategory.Special, 50);
             MoveDefinition tackle = UpsertMove(DemoMoves + "/Tackle.asset", 3, "Investida", ElementalType.Normal, MoveCategory.Physical, 40);
             MoveDefinition waterGun = UpsertMove(DemoMoves + "/WaterGun.asset", 4, "Jato de Agua", ElementalType.Water, MoveCategory.Special, 40);
+            MoveDefinition gust = UpsertMove(DemoMoves + "/Gust.asset", 5, "Rajada de Vento", ElementalType.Flying, MoveCategory.Special, 40);
+            MoveDefinition poisonSting = UpsertMove(DemoMoves + "/PoisonSting.asset", 6, "Ferroada", ElementalType.Poison, MoveCategory.Physical, 40);
 
             CreatureDefinition starter = UpsertCreature(
                 DemoCreatures + "/Ember.asset",
@@ -154,7 +163,7 @@ namespace PokeIdle.Editor
                 new LearnableMove(1, quickHit),
                 new LearnableMove(1, ember));
 
-            UpsertCreature(
+            CreatureDefinition caterpie = UpsertCreature(
                 DemoCreatures + "/Buglet.asset",
                 10,
                 "Caterpie",
@@ -162,6 +171,55 @@ namespace PokeIdle.Editor
                 FarmClass.Attacker,
                 new BaseStats(38, 48, 35, 30, 35, 45),
                 new LearnableMove(1, tackle));
+
+            CreatureDefinition metapod = UpsertCreature(
+                DemoCreatures + "/Metapod.asset",
+                11,
+                "Metapod",
+                ElementalType.Bug,
+                FarmClass.Tank,
+                new BaseStats(50, 35, 55, 25, 35, 30),
+                new LearnableMove(1, tackle));
+
+            caterpie.EvolutionTarget = metapod;
+            caterpie.EvolutionLevel = 7;
+            EditorUtility.SetDirty(caterpie);
+
+            CreatureDefinition weedle = UpsertCreature(
+                DemoCreatures + "/Weedle.asset",
+                13,
+                "Weedle",
+                ElementalType.Bug,
+                FarmClass.Attacker,
+                new BaseStats(40, 35, 30, 20, 20, 50),
+                new LearnableMove(1, poisonSting));
+
+            CreatureDefinition pidgey = UpsertCreature(
+                DemoCreatures + "/Pidgey.asset",
+                16,
+                "Pidgey",
+                ElementalType.Flying,
+                FarmClass.Speedster,
+                new BaseStats(40, 45, 40, 35, 35, 56),
+                new LearnableMove(1, gust));
+
+            CreatureDefinition rattata = UpsertCreature(
+                DemoCreatures + "/Rattata.asset",
+                19,
+                "Rattata",
+                ElementalType.Normal,
+                FarmClass.Attacker,
+                new BaseStats(30, 56, 35, 25, 35, 72),
+                new LearnableMove(1, tackle));
+
+            caterpie.WildSpawnWeight = 6;
+            weedle.WildSpawnWeight = 2;
+            pidgey.WildSpawnWeight = 2;
+            rattata.WildSpawnWeight = 2;
+            EditorUtility.SetDirty(caterpie);
+            EditorUtility.SetDirty(weedle);
+            EditorUtility.SetDirty(pidgey);
+            EditorUtility.SetDirty(rattata);
 
             UpsertCreature(
                 DemoCreatures + "/Squirtle.asset",
@@ -175,6 +233,34 @@ namespace PokeIdle.Editor
             EditorUtility.SetDirty(starter);
             AssetDatabase.SaveAssets();
             AssetDatabase.Refresh();
+        }
+
+        [MenuItem("PokeIdle/Create Game Balance Config")]
+        public static void CreateGameBalanceConfigAsset()
+        {
+            GameBalanceConfig config = CreateOrLoadGameBalanceConfig();
+            Selection.activeObject = config;
+            Debug.Log("PokeIdle: configuracao de balanceamento selecionada em " + BalanceConfigPath);
+        }
+
+        private static GameBalanceConfig CreateOrLoadGameBalanceConfig()
+        {
+            EnsureFolder("Assets", "Resources");
+            EnsureFolder("Assets/Resources", "PokeIdle");
+            EnsureFolder("Assets/Resources/PokeIdle", "Config");
+
+            GameBalanceConfig config = AssetDatabase.LoadAssetAtPath<GameBalanceConfig>(BalanceConfigPath);
+            if (config == null)
+            {
+                config = ScriptableObject.CreateInstance<GameBalanceConfig>();
+                config.ResetToDefaults();
+                AssetDatabase.CreateAsset(config, BalanceConfigPath);
+            }
+
+            EditorUtility.SetDirty(config);
+            AssetDatabase.SaveAssets();
+            AssetDatabase.Refresh();
+            return config;
         }
 
         private static MoveDefinition UpsertMove(string path, int id, string name, ElementalType type, MoveCategory category, int power)

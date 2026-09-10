@@ -492,8 +492,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 8ec24d6a2df6aa04aa046d42c84f8a9c, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PokeIdle.GameLoopManager
-  tickIntervalSeconds: 1
-  enemiesPerRoute: 10
+  balanceConfig: {fileID: 11400000, guid: 7cf9d88a2e184b5d9e6f3a7b12c4d8e0, type: 2}
 --- !u!114 &590972558
 MonoBehaviour:
   m_ObjectHideFlags: 0

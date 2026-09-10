@@ -11,17 +11,24 @@ namespace PokeIdle
         public int Level = 1;
         public int Experience;
         public int CurrentHP;
+        public bool IsBoss { get; private set; }
 
         public CreatureInstance()
         {
         }
 
         public CreatureInstance(CreatureDefinition definition, int level)
+            : this(definition, level, false)
+        {
+        }
+
+        public CreatureInstance(CreatureDefinition definition, int level, bool isBoss)
         {
             InstanceId = Guid.NewGuid().ToString("N");
             Definition = definition;
             Level = Mathf.Max(1, level);
             Experience = 0;
+            IsBoss = isBoss;
             CurrentHP = MaxHP;
         }
 
@@ -37,7 +44,7 @@ namespace PokeIdle
 
         public int MaxHP
         {
-            get { return Mathf.Max(1, Stats.HP); }
+            get { return Mathf.Max(1, IsBoss ? Mathf.CeilToInt(Stats.HP * ProgressionRules.BossHealthMultiplier) : Stats.HP); }
         }
 
         public bool IsFainted
@@ -95,6 +102,7 @@ namespace PokeIdle
             {
                 Experience -= ExperienceToNextLevel;
                 Level++;
+                // Subir de nivel restaura completamente o Pokemon ativo.
                 HealFull();
                 leveledUp = true;
             }

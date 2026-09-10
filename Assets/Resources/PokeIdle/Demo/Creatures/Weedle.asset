@@ -10,28 +10,28 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 0981b36316b7b894bb996f2d6fe3ff29, type: 3}
-  m_Name: Squirtle
+  m_Name: Weedle
   m_EditorClassIdentifier: Assembly-CSharp::PokeIdle.CreatureDefinition
-  Id: 7
-  CreatureName: Squirtle
-  PrimaryType: 2
+  Id: 13
+  CreatureName: Weedle
+  PrimaryType: 11
   HasSecondaryType: 0
   SecondaryType: 0
-  FarmAI: 0
+  FarmAI: 1
   BaseRarity: 0
-  WildSpawnWeight: 1
+  WildSpawnWeight: 2
   BaseStats:
-    HP: 44
-    Attack: 48
-    Defense: 65
-    SpAttack: 50
-    SpDefense: 64
-    Speed: 43
-  SpriteFront: {fileID: 21300000, guid: ee6e9f7892d041b8a4a862c026b29218, type: 3}
-  SpriteBack: {fileID: 21300000, guid: 10c96390e6c34012ac1c1c9a92043b19, type: 3}
-  Icon: {fileID: 21300000, guid: ee6e9f7892d041b8a4a862c026b29218, type: 3}
+    HP: 40
+    Attack: 35
+    Defense: 30
+    SpAttack: 20
+    SpDefense: 20
+    Speed: 50
+  SpriteFront: {fileID: 21300000, guid: 88e4c14fecdf4b179b2a5b2c1e970dca, type: 3}
+  SpriteBack: {fileID: 21300000, guid: f90e4b6602c2442d8fef6242a0ab024a, type: 3}
+  Icon: {fileID: 21300000, guid: 88e4c14fecdf4b179b2a5b2c1e970dca, type: 3}
   Learnset:
   - Level: 1
-    Move: {fileID: 11400000, guid: 63940af50f0e437cba361e5faa14dc4f, type: 2}
+    Move: {fileID: 11400000, guid: 47ff3841f0384e9083b500174209fb53, type: 2}
   EvolutionTarget: {fileID: 0}
   EvolutionLevel: 0

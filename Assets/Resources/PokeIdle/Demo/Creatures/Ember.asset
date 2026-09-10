@@ -19,6 +19,7 @@ MonoBehaviour:
   SecondaryType: 0
   FarmAI: 1
   BaseRarity: 0
+  WildSpawnWeight: 1
   BaseStats:
     HP: 45
     Attack: 55
