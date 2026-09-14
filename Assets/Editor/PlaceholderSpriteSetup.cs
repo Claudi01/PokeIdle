@@ -19,6 +19,8 @@ namespace PokeIdle.Editor
         {
             "Charmander_Front.png",
             "Charmander_Back.png",
+            "Charmeleon_Front.png",
+            "Charmeleon_Back.png",
             "Caterpie_Front.png",
             "Caterpie_Back.png",
             "Squirtle_Front.png",
@@ -113,6 +115,9 @@ namespace PokeIdle.Editor
             AssignCreatureSprites(weedle, weedleFront, weedleBack);
             AssignCreatureSprites(pidgey, pidgeyFront, pidgeyBack);
             AssignCreatureSprites(rattata, rattataFront, rattataBack);
+            AssignCreatureSprites(
+                AssetDatabase.LoadAssetAtPath<CreatureDefinition>("Assets/Resources/PokeIdle/Demo/Creatures/Charmeleon.asset"),
+                LoadSprite("Charmeleon_Front.png"), LoadSprite("Charmeleon_Back.png"));
 
             AssetDatabase.SaveAssets();
             Debug.Log("PokeIdle: sprites placeholder atribuidos aos assets de criatura.");

@@ -33,5 +33,7 @@ MonoBehaviour:
   Learnset:
   - Level: 1
     Move: {fileID: 11400000, guid: 321f195b1f5b3ae4985309c586619cba, type: 2}
+  SkillTree: []
   EvolutionTarget: {fileID: 11400000, guid: 940d70ae74814a5494fb84d470fe5236, type: 2}
   EvolutionLevel: 7
+  EvolutionCost: 0

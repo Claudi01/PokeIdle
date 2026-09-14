@@ -7,6 +7,11 @@ namespace PokeIdle
         private GameLoopManager loop;
         private TaskbarIntegration taskbarIntegration;
         private bool menuOpen;
+        private int menuTab;
+        private int selectedMoveSlot;
+        private Vector2 menuScroll;
+        private readonly float[] menuContentHeights = { 360f, 1200f, 100f };
+        private string progressionMessage;
 
         private GUIStyle labelStyle;
         private GUIStyle smallLabelStyle;
@@ -108,83 +113,173 @@ namespace PokeIdle
 
         private void DrawExpandedMenu()
         {
-            float menuWidth = Mathf.Clamp(Screen.width * 0.42f, 330f, 430f);
-            menuWidth = Mathf.Min(menuWidth, Screen.width - 12f);
-            float menuHeight = Mathf.Min(Screen.height - 12f, 356f);
+            float menuWidth = Mathf.Min(430f, Screen.width - 12f);
+            float menuHeight = Mathf.Min(Screen.height - 12f, 530f);
             Rect panel = new Rect(Screen.width - menuWidth - 6f, 6f, menuWidth, menuHeight);
-            DrawPanel(panel, new Color(0.025f, 0.035f, 0.055f, 0.97f));
-
-            GUI.Label(new Rect(panel.x + 12f, panel.y + 8f, panel.width - 60f, 24f), "MENU  |  EXPEDICAO", menuHeaderStyle);
-            if (GUI.Button(new Rect(panel.x + panel.width - 42f, panel.y + 7f, 30f, 25f), "X", buttonStyle))
+            DrawPanel(panel, new Color(0.025f, 0.035f, 0.055f, 0.98f));
+            GUI.Label(new Rect(panel.x + 12f, panel.y + 8f, panel.width - 60f, 24f),
+                loop.PlayerCreature.Definition.CreatureName + "  |  Nv " + loop.PlayerCreature.Level, menuHeaderStyle);
+            if (GUI.Button(new Rect(panel.xMax - 42f, panel.y + 7f, 30f, 25f), "X", buttonStyle))
             {
                 SetMenuOpen(false);
                 return;
             }
-
-            float x = panel.x + 12f;
-            float width = panel.width - 24f;
-            float y = panel.y + 38f;
-            CreatureInstance player = loop.PlayerCreature;
-            BaseStats stats = player.Stats;
-
-            if (loop.CanReturnToFailedPhase)
+            GUI.Label(new Rect(panel.x + 12f, panel.y + 34f, panel.width - 24f, 20f),
+                "MOEDAS " + loop.Gold + "   |   FASE " + loop.CurrentPhaseLabel
+                + "   |   INIMIGOS Nv " + loop.NormalEnemyLevel, smallLabelStyle);
+            int tab = GUI.Toolbar(new Rect(panel.x + 12f, panel.y + 58f, panel.width - 24f, 26f),
+                menuTab, new[] { "POKEMON", "GOLPES", "ITENS" }, buttonStyle);
+            if (tab != menuTab) { menuTab = tab; menuScroll = Vector2.zero; }
+            Rect viewport = new Rect(panel.x + 12f, panel.y + 92f, panel.width - 24f, Mathf.Max(30f, panel.height - 182f));
+            float width = viewport.width - 18f;
+            menuScroll = GUI.BeginScrollView(viewport, menuScroll,
+                new Rect(0f, 0f, width, Mathf.Max(viewport.height, menuContentHeights[menuTab])));
+            float y = 0f;
+            if (menuTab == 0) DrawPokemonMenu(width, ref y);
+            else if (menuTab == 1) DrawSkillsMenu(width, ref y);
+            else
             {
-                if (GUI.Button(new Rect(x, y, width, 26f), "TENTAR FASE " + loop.FailedPhaseLabel, buttonStyle))
-                {
-                    loop.ReturnToFailedPhase();
-                    return;
-                }
-
-                y += 32f;
+                GUI.Label(new Rect(0f, y, width, 24f), "ITENS DA EXPEDICAO", sectionStyle);
+                y += 30f;
+                DrawInventoryRow(0f, ref y, width, InventoryItemId.Potion);
+                DrawInventoryRow(0f, ref y, width, InventoryItemId.SuperPotion);
             }
-
-            GUI.Label(new Rect(x, y, width, 18f), "POKEMON ATIVO  |  LIDER DA PARTY", sectionStyle);
-            y += 22f;
-            GUI.Label(new Rect(x, y, width * 0.58f, 18f), player.Definition.CreatureName + "  Nv " + player.Level, labelStyle);
-            GUI.Label(new Rect(x + width * 0.58f, y, width * 0.42f, 18f), player.CurrentHP + "/" + player.MaxHP + " HP", smallLabelStyle);
-            y += 20f;
-            DrawHealthBar(new Rect(x, y, width, 8f), player.CurrentHP, player.MaxHP, new Color(0.25f, 0.88f, 0.42f));
-            y += 13f;
-            GUI.Label(new Rect(x, y, width, 15f), "XP  " + player.Experience + " / " + player.ExperienceToNextLevel, tinyLabelStyle);
-            DrawHealthBar(new Rect(x, y + 17f, width, 6f), player.Experience, player.ExperienceToNextLevel, new Color(0.28f, 0.57f, 0.96f));
-            y += 31f;
-
-            GUI.Label(new Rect(x, y, width, 18f), "STATUS", sectionStyle);
-            y += 21f;
-            GUI.Label(new Rect(x, y, width, 17f),
-                "HP " + stats.HP + "    ATK " + stats.Attack + "    DEF " + stats.Defense,
-                smallLabelStyle);
-            y += 17f;
-            GUI.Label(new Rect(x, y, width, 17f),
-                "SP.A " + stats.SpAttack + "    SP.D " + stats.SpDefense + "    VEL " + stats.Speed,
-                smallLabelStyle);
-            y += 27f;
-
-            GUI.Label(new Rect(x, y, width, 18f), "PARTY", sectionStyle);
-            y += 21f;
-            float slotWidth = (width - 8f) / 3f;
-            DrawPartySlot(new Rect(x, y, slotWidth, 32f), player.Definition.CreatureName, "LIDER");
-            DrawPartySlot(new Rect(x + slotWidth + 4f, y, slotWidth, 32f), "VAGO", "VAZIO");
-            DrawPartySlot(new Rect(x + (slotWidth + 4f) * 2f, y, slotWidth, 32f), "VAGO", "VAZIO");
-            y += 45f;
-
-            GUI.Label(new Rect(x, y, width, 18f), "INVENTARIO", sectionStyle);
-            y += 21f;
-            DrawInventoryRow(x, ref y, width, InventoryItemId.Potion);
-            DrawInventoryRow(x, ref y, width, InventoryItemId.SuperPotion);
-            y += 6f;
-
-            GUI.Label(new Rect(x, y, width, 17f), "ULTIMO EVENTO: " + loop.LastEvent, tinyLabelStyle);
-            y += 22f;
-            float halfWidth = (width - 6f) * 0.5f;
-            if (GUI.Button(new Rect(x, y, halfWidth, 27f), loop.IsPaused ? "RETOMAR" : "PAUSAR", buttonStyle))
-            {
-                loop.TogglePause();
-            }
-
-            if (GUI.Button(new Rect(x + halfWidth + 6f, y, halfWidth, 27f), "SALVAR", buttonStyle))
+            menuContentHeights[menuTab] = y + 8f;
+            GUI.EndScrollView();
+            GUI.Label(new Rect(panel.x + 12f, panel.yMax - 83f, panel.width - 24f, 44f),
+                string.IsNullOrEmpty(progressionMessage) ? loop.LastEvent : progressionMessage, tinyLabelStyle);
+            float half = (panel.width - 30f) * 0.5f;
+            if (GUI.Button(new Rect(panel.x + 12f, panel.yMax - 34f, half, 26f),
+                loop.IsPaused ? "RETOMAR" : "PAUSAR", buttonStyle)) loop.TogglePause();
+            if (GUI.Button(new Rect(panel.x + 18f + half, panel.yMax - 34f, half, 26f), "SALVAR", buttonStyle))
             {
                 loop.SaveNow();
+                progressionMessage = loop.LastEvent;
+            }
+        }
+
+        private void DrawPokemonMenu(float width, ref float y)
+        {
+            CreatureInstance player = loop.PlayerCreature;
+            BaseStats stats = player.Stats;
+            if (loop.CanReturnToFailedPhase)
+            {
+                if (GUI.Button(new Rect(0f, y, width, 26f), "TENTAR FASE " + loop.FailedPhaseLabel, buttonStyle))
+                    loop.ReturnToFailedPhase();
+                y += 34f;
+            }
+            GUI.Label(new Rect(0f, y, width, 20f), "LIDER DA PARTY  |  " + player.CurrentHP + "/" + player.MaxHP + " HP", sectionStyle);
+            y += 25f;
+            DrawHealthBar(new Rect(0f, y, width, 8f), player.CurrentHP, player.MaxHP, new Color(0.25f, 0.88f, 0.42f));
+            y += 18f;
+            if (GUI.Button(new Rect(0f, y, width, 28f), "UPAR  |  " + loop.LevelUpCost + " moedas", buttonStyle))
+            {
+                loop.TryLevelUpWithGold();
+                progressionMessage = loop.LastEvent;
+            }
+            y += 36f;
+            CreatureDefinition definition = player.Definition;
+            if (definition.EvolutionTarget != null)
+            {
+                GUI.Label(new Rect(0f, y, width, 20f),
+                    "EVOLUCAO: " + definition.EvolutionTarget.CreatureName + "  |  Nv " + definition.EvolutionLevel, sectionStyle);
+                y += 24f;
+                if (GUI.Button(new Rect(0f, y, width, 28f),
+                    "EVOLUIR  |  " + definition.EvolutionCost + " moedas", buttonStyle))
+                {
+                    loop.TryEvolve();
+                    progressionMessage = loop.LastEvent;
+                }
+                y += 32f;
+                GUI.Label(new Rect(0f, y, width, 28f),
+                    player.GetEvolutionBlock(loop.Gold) ?? "Disponivel! Mantem o nivel e os golpes comprados.", tinyLabelStyle);
+                y += 34f;
+            }
+            GUI.Label(new Rect(0f, y, width, 20f), "STATUS", sectionStyle);
+            y += 25f;
+            GUI.Label(new Rect(0f, y, width, 20f),
+                "HP " + stats.HP + "   ATK " + stats.Attack + "   DEF " + stats.Defense, smallLabelStyle);
+            y += 22f;
+            GUI.Label(new Rect(0f, y, width, 20f),
+                "SP.A " + stats.SpAttack + "   SP.D " + stats.SpDefense + "   VEL " + stats.Speed, smallLabelStyle);
+            y += 32f;
+            GUI.Label(new Rect(0f, y, width, 20f), "PARTY", sectionStyle);
+            y += 25f;
+            float slotWidth = (width - 8f) / 3f;
+            DrawPartySlot(new Rect(0f, y, slotWidth, 32f), player.Definition.CreatureName, "LIDER");
+            DrawPartySlot(new Rect(slotWidth + 4f, y, slotWidth, 32f), "VAGO", "VAZIO");
+            DrawPartySlot(new Rect((slotWidth + 4f) * 2f, y, slotWidth, 32f), "VAGO", "VAZIO");
+            y += 42f;
+        }
+
+        private void DrawSkillsMenu(float width, ref float y)
+        {
+            CreatureInstance player = loop.PlayerCreature;
+            GUI.Label(new Rect(0f, y, width, 20f), "GOLPES EQUIPADOS  |  " + player.GetEquippedMoves().Count + "/4", sectionStyle);
+            y += 25f;
+            float slotWidth = (width - 6f) * 0.5f;
+            for (int slot = 0; slot < CreatureInstance.MaxEquippedMoves; slot++)
+            {
+                MoveDefinition move = slot < player.EquippedMoveIds.Count ? player.FindMove(player.EquippedMoveIds[slot]) : null;
+                string label = (selectedMoveSlot == slot ? "> " : "") + (slot + 1) + ": " + (move == null ? "VAGO" : move.MoveName);
+                if (GUI.Button(new Rect((slot % 2) * (slotWidth + 6f), y + (slot / 2) * 32f, slotWidth, 28f), label, buttonStyle))
+                    selectedMoveSlot = slot;
+            }
+            y += 68f;
+            GUI.Label(new Rect(0f, y, width, 34f),
+                "Selecione um slot acima e use EQUIPAR. Trocas sao gratuitas; golpes comprados ficam aprendidos.", tinyLabelStyle);
+            y += 40f;
+            MoveDefinition best = AutoBattleEngine.ChooseMove(player, loop.CurrentEnemy);
+            GUI.Label(new Rect(0f, y, width, 30f),
+                best == null ? "A IA escolhe o melhor dano entre os quatro equipados."
+                    : "Melhor golpe contra " + loop.CurrentEnemy.Definition.CreatureName + ": " + best.MoveName, tinyLabelStyle);
+            y += 36f;
+            GUI.Label(new Rect(0f, y, width, 20f), "ARVORE DE HABILIDADES", sectionStyle);
+            y += 25f;
+            if (player.Definition.SkillTree == null || player.Definition.SkillTree.Count == 0)
+            {
+                GUI.Label(new Rect(0f, y, width, 30f), "Sem habilidades configuradas para este Pokemon.", tinyLabelStyle);
+                y += 36f;
+                return;
+            }
+            foreach (SkillNode node in player.Definition.SkillTree)
+            {
+                if (node == null || node.Move == null) continue;
+                bool learned = player.LearnedMoveIds.Contains(node.Move.Id);
+                bool equipped = player.EquippedMoveIds.Contains(node.Move.Id);
+                DrawPanel(new Rect(0f, y, width, 96f), new Color(0.08f, 0.1f, 0.14f));
+                string route = node.Prerequisite == null ? "INICIAL" : node.Prerequisite.MoveName + "  >";
+                GUI.Label(new Rect(8f, y + 4f, width - 16f, 18f), route, tinyLabelStyle);
+                GUI.Label(new Rect(8f, y + 24f, width - 102f, 20f), node.Move.MoveName, labelStyle);
+                GUI.Label(new Rect(8f, y + 47f, width - 16f, 18f),
+                    TypeLabel(node.Move.Type) + "  |  Poder " + node.Move.Power + "  |  Nv " + node.RequiredLevel
+                    + (learned ? "" : "  |  " + node.Cost + " moedas"), smallLabelStyle);
+                string state = equipped ? "Equipado" : learned ? "Aprendido" : player.GetSkillPurchaseBlock(node.Move.Id, loop.Gold) ?? "Disponivel para comprar";
+                GUI.Label(new Rect(8f, y + 69f, width - 16f, 24f), state, tinyLabelStyle);
+                bool wasEnabled = GUI.enabled;
+                GUI.enabled = wasEnabled && !equipped;
+                if (GUI.Button(new Rect(width - 88f, y + 24f, 80f, 24f), equipped ? "EQUIPADO" : learned ? "EQUIPAR" : "COMPRAR", buttonStyle))
+                {
+                    if (learned) loop.TryEquipMove(node.Move.Id, selectedMoveSlot);
+                    else loop.TryBuySkill(node.Move.Id);
+                    progressionMessage = loop.LastEvent;
+                }
+                GUI.enabled = wasEnabled;
+                y += 102f;
+            }
+        }
+
+        private static string TypeLabel(ElementalType type)
+        {
+            switch (type)
+            {
+                case ElementalType.Fire: return "Fogo";
+                case ElementalType.Water: return "Agua";
+                case ElementalType.Electric: return "Eletrico";
+                case ElementalType.Fighting: return "Lutador";
+                case ElementalType.Steel: return "Aco";
+                case ElementalType.Dragon: return "Dragao";
+                default: return type.ToString();
             }
         }
 
@@ -199,14 +294,9 @@ namespace PokeIdle
             int quantity = loop.GetItemQuantity(itemId);
             GUI.Label(new Rect(x, y, width * 0.45f, 22f), item.DisplayName + "  x" + quantity, smallLabelStyle);
             float buttonWidth = 54f;
-            if (GUI.Button(new Rect(x + width - buttonWidth * 2f - 6f, y - 1f, buttonWidth, 24f), "USAR", buttonStyle))
+            if (GUI.Button(new Rect(x + width - buttonWidth, y - 1f, buttonWidth, 24f), "USAR", buttonStyle))
             {
                 loop.TryUseItem(itemId);
-            }
-
-            if (GUI.Button(new Rect(x + width - buttonWidth, y - 1f, buttonWidth, 24f), "+ " + item.ShopPrice, buttonStyle))
-            {
-                loop.TryBuyItem(itemId, 1);
             }
 
             y += 27f;

@@ -26,10 +26,12 @@ namespace PokeIdle
         public Sprite SpriteBack;
         public Sprite Icon;
         public List<LearnableMove> Learnset = new List<LearnableMove>();
+        public List<SkillNode> SkillTree = new List<SkillNode>();
 
         [Header("Evolution")]
         public CreatureDefinition EvolutionTarget;
         public int EvolutionLevel;
+        [Min(0)] public int EvolutionCost;
 
         public BaseStats GetStatsAtLevel(int level)
         {

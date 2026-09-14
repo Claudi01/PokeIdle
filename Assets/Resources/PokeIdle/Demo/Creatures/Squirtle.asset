@@ -19,7 +19,7 @@ MonoBehaviour:
   SecondaryType: 0
   FarmAI: 0
   BaseRarity: 0
-  WildSpawnWeight: 1
+  WildSpawnWeight: 4
   BaseStats:
     HP: 44
     Attack: 48
@@ -33,5 +33,7 @@ MonoBehaviour:
   Learnset:
   - Level: 1
     Move: {fileID: 11400000, guid: 63940af50f0e437cba361e5faa14dc4f, type: 2}
+  SkillTree: []
   EvolutionTarget: {fileID: 0}
   EvolutionLevel: 0
+  EvolutionCost: 0

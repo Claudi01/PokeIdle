@@ -85,48 +85,39 @@ namespace PokeIdle
             return result;
         }
 
-        private static MoveDefinition ChooseMove(CreatureInstance attacker, CreatureInstance defender)
+        public static MoveDefinition ChooseMove(CreatureInstance attacker, CreatureInstance defender)
         {
             MoveDefinition selected = null;
-            int selectedScore = int.MinValue;
+            float selectedScore = -1f;
 
-            if (attacker.Definition == null || attacker.Definition.Learnset == null)
+            if (attacker == null || defender == null || attacker.Definition == null)
             {
                 return null;
             }
 
-            for (int i = 0; i < attacker.Definition.Learnset.Count; i++)
+            foreach (MoveDefinition move in attacker.GetEquippedMoves())
             {
-                LearnableMove learnable = attacker.Definition.Learnset[i];
-                if (learnable.Move == null || learnable.Level > attacker.Level)
-                {
-                    continue;
-                }
-
-                int score = learnable.Move.Power + learnable.Move.Priority * 10;
-                if (attacker.Definition.FarmAI == FarmClass.Speedster)
-                {
-                    score += learnable.Move.Priority * 20;
-                }
-
-                float effectiveness = TypeChart.GetEffectiveness(learnable.Move.Type, defender.Definition);
-                if (effectiveness <= 0f)
-                {
-                    score -= 1000;
-                }
-                else
-                {
-                    score += Mathf.RoundToInt(effectiveness * 10f);
-                }
-
+                if (!move.DealsDamage) continue;
+                float score = EstimateDamage(attacker, defender, move) * Mathf.Clamp(move.Accuracy, 0, 100) / 100f;
                 if (score > selectedScore)
                 {
-                    selected = learnable.Move;
+                    selected = move;
                     selectedScore = score;
                 }
             }
 
             return selected;
+        }
+
+        public static float EstimateDamage(CreatureInstance attacker, CreatureInstance defender, MoveDefinition move)
+        {
+            if (attacker == null || defender == null || move == null || !move.DealsDamage) return 0f;
+            float effectiveness = TypeChart.GetEffectiveness(move.Type, defender.Definition);
+            if (effectiveness <= 0f) return 0f;
+            float baseDamage = ((2f * Mathf.Max(1, attacker.Level) / 5f + 2f) * move.Power
+                * Mathf.Max(1, attacker.GetAttackStat(move.Category))
+                / Mathf.Max(1, defender.GetDefenseStat(move.Category)) / 50f) + 2f;
+            return Mathf.Max(1f, baseDamage * (HasType(attacker.Definition, move.Type) ? 1.5f : 1f) * effectiveness);
         }
 
         private static bool HasType(CreatureDefinition creature, ElementalType type)

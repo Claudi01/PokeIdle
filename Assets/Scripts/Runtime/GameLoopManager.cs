@@ -11,6 +11,7 @@ namespace PokeIdle
         private DemoContentSet content;
         private AutoBattleEngine battleEngine;
         private PlayerInventory inventory = new PlayerInventory();
+        private PhaseDifficulty difficulty = new PhaseDifficulty();
         private float tickTimer;
         private bool initialized;
         private bool hasRetryPhase;
@@ -34,6 +35,15 @@ namespace PokeIdle
         public bool CanReturnToFailedPhase { get { return hasRetryPhase; } }
         public string CurrentPhaseLabel { get { return FormatPhaseLabel(WorldNumber, PhaseNumber); } }
         public string FailedPhaseLabel { get { return FormatPhaseLabel(retryWorldNumber, retryPhaseNumber); } }
+        public int LevelUpCost
+        {
+            get { return ProgressionRules.GetLevelUpCost(PlayerCreature == null ? 1 : PlayerCreature.Level); }
+        }
+        public bool CanLevelUp
+        {
+            get { return PlayerCreature != null && Gold >= LevelUpCost; }
+        }
+        public int NormalEnemyLevel { get { return PlayerCreature == null ? 1 : difficulty.GetLevel(WorldNumber, PhaseNumber, PlayerCreature.Level, false); } }
         public string LastEvent { get; private set; } = "Preparando a expedicao...";
 
         public event Action StateChanged;
@@ -94,26 +104,16 @@ namespace PokeIdle
             content = DemoContent.Load();
             PlayerSaveData save = SaveService.Load();
 
-            PlayerCreature = new CreatureInstance(
-                content.Starter,
-                save != null && save.ActiveCreature != null
-                    ? Mathf.Max(ProgressionRules.StartingCreatureLevel, save.ActiveCreature.Level)
-                    : ProgressionRules.StartingCreatureLevel);
-
-            if (save != null && save.ActiveCreature != null && save.ActiveCreature.CreatureId == content.Starter.Id)
-            {
-                PlayerCreature.Experience = Mathf.Max(0, save.ActiveCreature.Experience);
-                PlayerCreature.CurrentHP = save.ActiveCreature.CurrentHP;
-            }
+            PlayerCreature = SaveService.RestoreCreature(save == null ? null : save.ActiveCreature, content, save != null && save.Version >= 6);
 
             bool loadedAfterDefeat = save != null
                 && save.ActiveCreature != null
-                && save.ActiveCreature.CreatureId == content.Starter.Id
+                && save.ActiveCreature.CreatureId == PlayerCreature.Definition.Id
                 && save.ActiveCreature.CurrentHP <= 0;
             PlayerCreature.EnsureValid();
             Gold = save != null ? Mathf.Max(0, save.Gold) : 0;
             TotalDefeated = save != null ? Mathf.Max(0, save.TotalDefeated) : 0;
-            bool usesPhaseProgression = save != null && save.Version >= ProgressionRules.SaveVersion;
+            bool usesPhaseProgression = save != null && save.Version >= ProgressionRules.PhaseProgressionSaveVersion;
             WorldNumber = usesPhaseProgression
                 ? Mathf.Max(1, save.WorldNumber)
                 : save != null ? Mathf.Max(1, save.RouteNumber) : 1;
@@ -131,6 +131,8 @@ namespace PokeIdle
             hasRetryPhase = usesPhaseProgression && save.HasRetryPhase;
             retryWorldNumber = usesPhaseProgression ? Mathf.Max(1, save.RetryWorldNumber) : 1;
             retryPhaseNumber = usesPhaseProgression ? Mathf.Max(0, save.RetryPhaseNumber) : 0;
+            difficulty.Restore(save == null ? null : save.PhaseDifficulties);
+            difficulty.GetLevel(WorldNumber, PhaseNumber, PlayerCreature.Level, false);
 
             inventory = new PlayerInventory();
             if (save != null && save.Inventory != null)
@@ -212,6 +214,9 @@ namespace PokeIdle
             inventory = new PlayerInventory();
             initialized = true;
 
+            difficulty = new PhaseDifficulty();
+            difficulty.GetLevel(WorldNumber, PhaseNumber, PlayerCreature.Level, false);
+
             SaveNowSilently();
             LastEvent = "Progresso de teste resetado.";
             NotifyInventoryChanged();
@@ -276,7 +281,7 @@ namespace PokeIdle
                 return;
             }
 
-            int enemyLevel = ProgressionRules.GetEnemyLevel(WorldNumber, isBoss);
+            int enemyLevel = difficulty.GetLevel(WorldNumber, PhaseNumber, PlayerCreature.Level, isBoss);
             CurrentEnemy = new CreatureInstance(wildCreature, enemyLevel, isBoss);
             Phase = BattlePhase.Searching;
             LastEvent = isBoss
@@ -388,13 +393,11 @@ namespace PokeIdle
             int defeatedLevel = CurrentEnemy.Level;
             int worldAtDefeat = WorldNumber;
             int goldReward = ProgressionRules.GetGoldReward(defeatedLevel, worldAtDefeat);
-            int experienceReward = ProgressionRules.GetExperienceReward(defeatedLevel, worldAtDefeat);
-            bool leveledUp = PlayerCreature.GainExperience(experienceReward);
 
             Gold += goldReward;
             TotalDefeated++;
             EncounterProgress++;
-            LastEvent += " Recompensas: +" + goldReward + " ouro, +" + experienceReward + " XP.";
+            LastEvent += " Recompensas: +" + goldReward + " ouro.";
 
             List<InventoryItemStack> drops = LootTable.RollDrops(defeatedLevel, worldAtDefeat);
             for (int i = 0; i < drops.Count; i++)
@@ -411,11 +414,6 @@ namespace PokeIdle
             else
             {
                 LastEvent += " Nenhum item caiu.";
-            }
-
-            if (leveledUp)
-            {
-                LastEvent += " " + PlayerCreature.Definition.CreatureName + " alcancou o nivel " + PlayerCreature.Level + ".";
             }
 
             if (EncounterProgress >= EnemiesPerPhase)
@@ -445,6 +443,7 @@ namespace PokeIdle
 
             EncounterProgress = 0;
             PlayerCreature.HealFull();
+            difficulty.GetLevel(WorldNumber, PhaseNumber, PlayerCreature.Level, false);
             if (hasRetryPhase && IsPhaseAtOrAfter(WorldNumber, PhaseNumber, retryWorldNumber, retryPhaseNumber))
             {
                 hasRetryPhase = false;
@@ -481,6 +480,8 @@ namespace PokeIdle
 
             WorldNumber = previousWorld;
             PhaseNumber = previousPhase;
+            // A migrated save may lack a snapshot for an earlier, already-cleared phase.
+            difficulty.GetLevel(WorldNumber, PhaseNumber, 1, false);
             EncounterProgress = 0;
             CurrentEnemy = null;
             Phase = BattlePhase.Recovering;
@@ -549,34 +550,69 @@ namespace PokeIdle
             return true;
         }
 
-        public bool TryBuyItem(InventoryItemId itemId, int quantity)
+        public bool TryLevelUpWithGold()
         {
-            if (!initialized || inventory == null || quantity <= 0)
+            if (!initialized || PlayerCreature == null)
             {
                 return false;
             }
 
-            ItemInfo item = ItemCatalog.Get(itemId);
-            if (item == null)
+            int cost = LevelUpCost;
+            if (Gold < cost)
             {
-                return false;
-            }
-
-            long totalCost = (long)item.ShopPrice * quantity;
-            if (totalCost > Gold || totalCost > int.MaxValue)
-            {
-                LastEvent = "Ouro insuficiente para comprar " + quantity + "x " + item.DisplayName + ".";
+                LastEvent = "Ouro insuficiente. O proximo nivel custa " + cost + " moedas.";
                 NotifyStateChanged();
                 return false;
             }
 
-            Gold -= (int)totalCost;
-            inventory.Add(itemId, quantity);
-            LastEvent = "Comprou " + quantity + "x " + item.DisplayName + " por " + totalCost + " ouro.";
+            int previousLevel = PlayerCreature.Level;
+            Gold -= cost;
+            PlayerCreature.Level = previousLevel + 1;
+            PlayerCreature.HealFull();
+            LastEvent = PlayerCreature.Definition.CreatureName
+                + " subiu para o nivel " + PlayerCreature.Level
+                + " por " + cost + " moedas. HP restaurado.";
+
             SaveNowSilently();
-            NotifyInventoryChanged();
             NotifyStateChanged();
             return true;
+        }
+
+        public bool TryBuySkill(int moveId)
+        {
+            if (!initialized || PlayerCreature == null) return false;
+            int wallet = Gold;
+            string message;
+            bool success = PlayerCreature.TryPurchaseSkill(moveId, ref wallet, out message);
+            Gold = wallet;
+            LastEvent = message;
+            if (success) SaveNowSilently();
+            NotifyStateChanged();
+            return success;
+        }
+
+        public bool TryEquipMove(int moveId, int slot)
+        {
+            if (!initialized || PlayerCreature == null) return false;
+            string message;
+            bool success = PlayerCreature.TryEquipMove(moveId, slot, out message);
+            LastEvent = message;
+            if (success) SaveNowSilently();
+            NotifyStateChanged();
+            return success;
+        }
+
+        public bool TryEvolve()
+        {
+            if (!initialized || PlayerCreature == null) return false;
+            int wallet = Gold;
+            string message;
+            bool success = PlayerCreature.TryEvolve(ref wallet, out message);
+            Gold = wallet;
+            LastEvent = message;
+            if (success) SaveNowSilently();
+            NotifyStateChanged();
+            return success;
         }
 
         private void SaveNowSilently()
@@ -601,11 +637,14 @@ namespace PokeIdle
                 HasRetryPhase = hasRetryPhase,
                 RetryWorldNumber = retryWorldNumber,
                 RetryPhaseNumber = retryPhaseNumber,
+                PhaseDifficulties = difficulty.Export(),
                 ActiveCreature = new CreatureSaveData
                 {
                     CreatureId = PlayerCreature.Definition != null ? PlayerCreature.Definition.Id : 0,
                     Level = PlayerCreature.Level,
-                    Experience = PlayerCreature.Experience,
+                    InstanceId = PlayerCreature.InstanceId,
+                    LearnedMoveIds = new List<int>(PlayerCreature.LearnedMoveIds),
+                    EquippedMoveIds = new List<int>(PlayerCreature.EquippedMoveIds),
                     CurrentHP = PlayerCreature.CurrentHP
                 },
                 Inventory = inventory != null ? inventory.Items : new List<InventoryItemStack>()

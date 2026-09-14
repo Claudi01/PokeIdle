@@ -16,11 +16,11 @@ MonoBehaviour:
   tickIntervalSeconds: 1
   phasesPerWorld: 10
   enemiesPerPhase: 10
-  baseExperienceToNextLevel: 75
-  experienceGrowthPerLevel: 35
-  baseExperienceReward: 7
-  experienceWorldBonus: 1
   baseGoldReward: 4
   goldWorldBonus: 1
+  baseLevelUpCost: 25
+  levelUpCostGrowth: 15
+  enemyLevelsPerPhase: 1.25
+  enemyPlayerLevelRatio: 0.9
   bossLevelBonus: 2
   bossHealthMultiplier: 1.6

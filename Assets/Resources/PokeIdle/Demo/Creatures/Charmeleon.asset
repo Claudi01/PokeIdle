@@ -10,10 +10,10 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 0981b36316b7b894bb996f2d6fe3ff29, type: 3}
-  m_Name: Ember
+  m_Name: Charmeleon
   m_EditorClassIdentifier: Assembly-CSharp::PokeIdle.CreatureDefinition
-  Id: 4
-  CreatureName: Charmander
+  Id: 5
+  CreatureName: Charmeleon
   PrimaryType: 1
   HasSecondaryType: 0
   SecondaryType: 0
@@ -21,15 +21,15 @@ MonoBehaviour:
   BaseRarity: 0
   WildSpawnWeight: 1
   BaseStats:
-    HP: 45
-    Attack: 55
-    Defense: 40
-    SpAttack: 60
-    SpDefense: 50
-    Speed: 65
-  SpriteFront: {fileID: 21300000, guid: db170dea5f0e3fe4c92e311d268eb31b, type: 3}
-  SpriteBack: {fileID: 21300000, guid: 4dbdf6e321759a34e8fe46f6adf5c490, type: 3}
-  Icon: {fileID: 21300000, guid: db170dea5f0e3fe4c92e311d268eb31b, type: 3}
+    HP: 58
+    Attack: 64
+    Defense: 58
+    SpAttack: 80
+    SpDefense: 65
+    Speed: 80
+  SpriteFront: {fileID: 21300000, guid: 4434eacb280403282d7c3faff5e928d1, type: 3}
+  SpriteBack: {fileID: 21300000, guid: 6bff6a4a7de3becb2ca8dd075d7c95e2, type: 3}
+  Icon: {fileID: 21300000, guid: 4434eacb280403282d7c3faff5e928d1, type: 3}
   Learnset:
   - Level: 1
     Move: {fileID: 11400000, guid: 9e63c1a5ab48cf445b88e12e5edc980c, type: 2}
@@ -68,6 +68,6 @@ MonoBehaviour:
     RequiredLevel: 18
     Cost: 400
     Prerequisite: {fileID: 11400000, guid: 3b0f652571895e3b7c3598ca67ef4820, type: 2}
-  EvolutionTarget: {fileID: 11400000, guid: 94717a2a915ad0788d1bbaf404d4726c, type: 2}
-  EvolutionLevel: 16
-  EvolutionCost: 400
+  EvolutionTarget: {fileID: 0}
+  EvolutionLevel: 0
+  EvolutionCost: 0

@@ -97,12 +97,14 @@ namespace PokeIdle.Editor
             SpriteRenderer playerShadowRenderer = CreateSceneRenderer(appTransform, "PlayerShadow", 5);
             SpriteRenderer enemyShadowRenderer = CreateSceneRenderer(appTransform, "EnemyShadow", 5);
             SpriteRenderer groundRenderer = CreateSceneRenderer(appTransform, "ArenaGround", -10);
-            var hordeRenderers = new System.Collections.Generic.List<SpriteRenderer>();
-            for (int i = 0; i < 6; i++)
-            {
-                hordeRenderers.Add(CreateSceneRenderer(appTransform, "HordeVisual_" + (i + 1).ToString("00"), 2));
-            }
-            arena.ConfigureReferences(arenaCamera, playerRenderer, enemyRenderer, playerShadowRenderer, enemyShadowRenderer, groundRenderer, hordeRenderers);
+            arena.ConfigureReferences(
+                arenaCamera,
+                playerRenderer,
+                enemyRenderer,
+                playerShadowRenderer,
+                enemyShadowRenderer,
+                groundRenderer,
+                new System.Collections.Generic.List<SpriteRenderer>());
         }
 
         private static Camera GetOrCreateSceneCamera(Transform parent)
@@ -152,6 +154,12 @@ namespace PokeIdle.Editor
             MoveDefinition waterGun = UpsertMove(DemoMoves + "/WaterGun.asset", 4, "Jato de Agua", ElementalType.Water, MoveCategory.Special, 40);
             MoveDefinition gust = UpsertMove(DemoMoves + "/Gust.asset", 5, "Rajada de Vento", ElementalType.Flying, MoveCategory.Special, 40);
             MoveDefinition poisonSting = UpsertMove(DemoMoves + "/PoisonSting.asset", 6, "Ferroada", ElementalType.Poison, MoveCategory.Physical, 40);
+            MoveDefinition metalClaw = UpsertMove(DemoMoves + "/MetalClaw.asset", 7, "Garra de Metal", ElementalType.Steel, MoveCategory.Physical, 50);
+            MoveDefinition dragonBreath = UpsertMove(DemoMoves + "/DragonBreath.asset", 8, "Sopro do Dragao", ElementalType.Dragon, MoveCategory.Special, 60);
+            MoveDefinition brickBreak = UpsertMove(DemoMoves + "/BrickBreak.asset", 9, "Quebra-Telha", ElementalType.Fighting, MoveCategory.Physical, 75);
+            MoveDefinition flamethrower = UpsertMove(DemoMoves + "/Flamethrower.asset", 10, "Lanca-Chamas", ElementalType.Fire, MoveCategory.Special, 90);
+            MoveDefinition thunderPunch = UpsertMove(DemoMoves + "/ThunderPunch.asset", 11, "Soco Trovao", ElementalType.Electric, MoveCategory.Physical, 75);
+            MoveDefinition slash = UpsertMove(DemoMoves + "/Slash.asset", 12, "Talho", ElementalType.Normal, MoveCategory.Physical, 70);
 
             CreatureDefinition starter = UpsertCreature(
                 DemoCreatures + "/Ember.asset",
@@ -162,6 +170,14 @@ namespace PokeIdle.Editor
                 new BaseStats(45, 55, 40, 60, 50, 65),
                 new LearnableMove(1, quickHit),
                 new LearnableMove(1, ember));
+
+            CreatureDefinition charmeleon = UpsertCreature(
+                DemoCreatures + "/Charmeleon.asset", 5, "Charmeleon", ElementalType.Fire,
+                FarmClass.Attacker, new BaseStats(58, 64, 58, 80, 65, 80),
+                new LearnableMove(1, quickHit), new LearnableMove(1, ember));
+            StarterSkillContent.Configure(starter, charmeleon, quickHit, ember, metalClaw,
+                slash, brickBreak, flamethrower, dragonBreath, thunderPunch);
+            EditorUtility.SetDirty(charmeleon);
 
             CreatureDefinition caterpie = UpsertCreature(
                 DemoCreatures + "/Buglet.asset",
@@ -221,7 +237,7 @@ namespace PokeIdle.Editor
             EditorUtility.SetDirty(pidgey);
             EditorUtility.SetDirty(rattata);
 
-            UpsertCreature(
+            CreatureDefinition squirtle = UpsertCreature(
                 DemoCreatures + "/Squirtle.asset",
                 7,
                 "Squirtle",
@@ -229,6 +245,8 @@ namespace PokeIdle.Editor
                 FarmClass.Tank,
                 new BaseStats(44, 48, 65, 50, 64, 43),
                 new LearnableMove(1, waterGun));
+            squirtle.WildSpawnWeight = 4;
+            EditorUtility.SetDirty(squirtle);
 
             EditorUtility.SetDirty(starter);
             AssetDatabase.SaveAssets();

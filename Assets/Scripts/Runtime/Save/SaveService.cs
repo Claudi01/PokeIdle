@@ -10,8 +10,10 @@ namespace PokeIdle
     {
         public int CreatureId;
         public int Level;
-        public int Experience;
         public int CurrentHP;
+        public string InstanceId;
+        public List<int> LearnedMoveIds;
+        public List<int> EquippedMoveIds;
     }
 
     [Serializable]
@@ -31,11 +33,27 @@ namespace PokeIdle
         public int RetryWorldNumber = 1;
         public int RetryPhaseNumber;
         public CreatureSaveData ActiveCreature;
+        public List<PhaseDifficultyRecord> PhaseDifficulties;
         public List<InventoryItemStack> Inventory = new List<InventoryItemStack>();
     }
 
     public static class SaveService
     {
+        public static CreatureInstance RestoreCreature(CreatureSaveData saved, DemoContentSet content, bool hasMoveLoadout)
+        {
+            CreatureDefinition definition = content.FindCreature(saved == null ? content.Starter.Id : saved.CreatureId) ?? content.Starter;
+            var creature = new CreatureInstance(definition, saved == null
+                ? ProgressionRules.StartingCreatureLevel : Mathf.Max(ProgressionRules.StartingCreatureLevel, saved.Level));
+            if (saved != null && saved.CreatureId == definition.Id)
+            {
+                creature.CurrentHP = saved.CurrentHP;
+                if (!string.IsNullOrEmpty(saved.InstanceId)) creature.InstanceId = saved.InstanceId;
+                if (hasMoveLoadout) creature.RestoreMoves(saved.LearnedMoveIds, saved.EquippedMoveIds);
+            }
+            creature.EnsureValid();
+            return creature;
+        }
+
         public static string SavePath
         {
             get { return Path.Combine(Application.persistentDataPath, "pokeidle_save.json"); }

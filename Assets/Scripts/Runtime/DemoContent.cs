@@ -29,6 +29,14 @@ namespace PokeIdle
         public CreatureDefinition Starter;
         public CreatureDefinition WildCreature;
         public List<WildCreatureEncounter> WildEncounters = new List<WildCreatureEncounter>();
+
+        public CreatureDefinition FindCreature(int id)
+        {
+            CreatureDefinition creature = Starter;
+            for (int i = 0; creature != null && i < 10; i++, creature = creature.EvolutionTarget)
+                if (creature.Id == id) return creature;
+            return null;
+        }
     }
 
     public static class DemoContent
@@ -62,7 +70,7 @@ namespace PokeIdle
 
                 if (squirtle != null)
                 {
-                    encounters.Add(new WildCreatureEncounter(squirtle, 5));
+                    encounters.Add(new WildCreatureEncounter(squirtle, 2));
                 }
 
                 return new DemoContentSet
@@ -84,6 +92,12 @@ namespace PokeIdle
             MoveDefinition waterGun = CreateMove("Jato de Agua", ElementalType.Water, MoveCategory.Special, 40, 4);
             MoveDefinition gust = CreateMove("Rajada de Vento", ElementalType.Flying, MoveCategory.Special, 40, 5);
             MoveDefinition poisonSting = CreateMove("Ferroada", ElementalType.Poison, MoveCategory.Physical, 40, 6);
+            MoveDefinition metalClaw = CreateMove("Garra de Metal", ElementalType.Steel, MoveCategory.Physical, 50, 7);
+            MoveDefinition dragonBreath = CreateMove("Sopro do Dragao", ElementalType.Dragon, MoveCategory.Special, 60, 8);
+            MoveDefinition brickBreak = CreateMove("Quebra-Telha", ElementalType.Fighting, MoveCategory.Physical, 75, 9);
+            MoveDefinition flamethrower = CreateMove("Lanca-Chamas", ElementalType.Fire, MoveCategory.Special, 90, 10);
+            MoveDefinition thunderPunch = CreateMove("Soco Trovao", ElementalType.Electric, MoveCategory.Physical, 75, 11);
+            MoveDefinition slash = CreateMove("Talho", ElementalType.Normal, MoveCategory.Physical, 70, 12);
 
             CreatureDefinition starter = CreateCreature(
                 4,
@@ -93,6 +107,12 @@ namespace PokeIdle
                 new BaseStats(45, 55, 40, 60, 50, 65),
                 new LearnableMove(1, quickHit),
                 new LearnableMove(1, ember));
+
+            CreatureDefinition charmeleon = CreateCreature(5, "Charmeleon", ElementalType.Fire,
+                FarmClass.Attacker, new BaseStats(58, 64, 58, 80, 65, 80),
+                new LearnableMove(1, quickHit), new LearnableMove(1, ember));
+            StarterSkillContent.Configure(starter, charmeleon, quickHit, ember, metalClaw,
+                slash, brickBreak, flamethrower, dragonBreath, thunderPunch);
 
             CreatureDefinition caterpie = CreateCreature(
                 10,
@@ -149,6 +169,7 @@ namespace PokeIdle
                 FarmClass.Tank,
                 new BaseStats(44, 48, 65, 50, 64, 43),
                 new LearnableMove(1, waterGun));
+            squirtle.WildSpawnWeight = 4;
 
             return new DemoContentSet
             {
@@ -160,7 +181,7 @@ namespace PokeIdle
                     new WildCreatureEncounter(weedle, 1),
                     new WildCreatureEncounter(pidgey, 1),
                     new WildCreatureEncounter(rattata, 1),
-                    new WildCreatureEncounter(squirtle, 5)
+                    new WildCreatureEncounter(squirtle, 2)
                 }
             };
         }

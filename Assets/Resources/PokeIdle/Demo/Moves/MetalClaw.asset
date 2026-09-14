@@ -1,0 +1,22 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 476668b67c521a94298ee826492ab4c8, type: 3}
+  m_Name: MetalClaw
+  m_EditorClassIdentifier: Assembly-CSharp::PokeIdle.MoveDefinition
+  Id: 7
+  MoveName: Garra de Metal
+  Type: 16
+  Category: 0
+  Power: 50
+  Accuracy: 100
+  MaxPP: 20
+  Priority: 0

@@ -16,10 +16,10 @@ namespace PokeIdle
         [SerializeField] private List<SpriteRenderer> backgroundRenderers = new List<SpriteRenderer>();
 
         [Header("Layout")]
-        [SerializeField, Range(0.25f, 0.5f)] private float playerViewportX = 0.42f;
-        [SerializeField, Range(0.5f, 0.75f)] private float enemyViewportX = 0.58f;
-        [SerializeField, Range(0.2f, 0.8f)] private float playerViewportY = 0.39f;
-        [SerializeField, Range(0.2f, 0.8f)] private float enemyViewportY = 0.49f;
+        [SerializeField, Range(0.25f, 0.5f)] private float playerViewportX = 0.36f;
+        [SerializeField, Range(0.5f, 0.75f)] private float enemyViewportX = 0.64f;
+        [SerializeField, Range(0.2f, 0.8f)] private float playerViewportY = 0.4f;
+        [SerializeField, Range(0.2f, 0.8f)] private float enemyViewportY = 0.4f;
         [SerializeField, Min(0.5f)] private float cameraSizeInEditor = 3.2f;
         [SerializeField, Min(0.5f)] private float cameraSizeInBuild = 2.2f;
 
@@ -96,6 +96,7 @@ namespace PokeIdle
             enemyShadowRenderer = enemyShadow;
             groundRenderer = ground;
             hordeRenderers = horde ?? new List<SpriteRenderer>();
+            HideHordeRenderers();
         }
 
         private void EnsureSceneReferences()
@@ -152,10 +153,7 @@ namespace PokeIdle
                 hordeRenderers = new List<SpriteRenderer>();
             }
 
-            while (hordeRenderers.Count < 6)
-            {
-                hordeRenderers.Add(CreateRenderer("HordeVisual_" + (hordeRenderers.Count + 1).ToString("00"), 2));
-            }
+            HideHordeRenderers();
         }
 
         private SpriteRenderer CreateRenderer(string objectName, int sortingOrder)
@@ -231,7 +229,8 @@ namespace PokeIdle
             playerShadowRenderer.enabled = player != null;
             enemyShadowRenderer.enabled = enemy != null;
 
-            FitRendererToArena(playerRenderer, playerViewportX, playerViewportY, 0.49f, 0.44f, true);
+            // O sprite traseiro do jogador ja esta orientado para o inimigo, que fica a direita.
+            FitRendererToArena(playerRenderer, playerViewportX, playerViewportY, 0.49f, 0.44f, false);
             if (enemy != null)
             {
                 float enemyX = GetEnemyViewportX();
@@ -243,13 +242,8 @@ namespace PokeIdle
             FitGroundToArena();
             FitBackgroundToArena();
 
-            for (int i = 0; i < hordeRenderers.Count; i++)
-            {
-                SpriteRenderer hordeRenderer = hordeRenderers[i];
-                hordeRenderer.sprite = enemySprite;
-                hordeRenderer.enabled = enemy != null && !enemy.IsFainted && loop.Phase == BattlePhase.Searching;
-                FitHordeRenderer(hordeRenderer, i);
-            }
+            // A arena exibe somente o inimigo atual. Os antigos visuais de horda ficam ocultos.
+            HideHordeRenderers();
         }
 
         private void AnimateScene()
@@ -279,30 +273,6 @@ namespace PokeIdle
             }
 
             AnimateBackground();
-            AnimateHorde();
-        }
-
-        private void AnimateHorde()
-        {
-            if (hordeRenderers == null || hordeRenderers.Count == 0 || loop == null || loop.CurrentEnemy == null || loop.CurrentEnemy.IsFainted || loop.Phase != BattlePhase.Searching)
-            {
-                return;
-            }
-
-            for (int i = 0; i < hordeRenderers.Count; i++)
-            {
-                SpriteRenderer renderer = hordeRenderers[i];
-                bool comesFromLeft = i % 2 == 0;
-                int lane = i / 2;
-                float cycle = Mathf.Repeat(Time.unscaledTime * 0.08f + i * 0.16f, 1f);
-                float startX = comesFromLeft ? -0.08f : 1.08f;
-                float endX = comesFromLeft ? 0.34f : 0.66f;
-                float viewportX = Mathf.Lerp(startX, endX, cycle);
-                float viewportY = 0.29f + lane * 0.13f;
-                Vector3 position = ViewportToWorld(viewportX, viewportY);
-                renderer.transform.position = new Vector3(position.x, position.y, 0.2f);
-                renderer.flipX = !comesFromLeft;
-            }
         }
 
         private void FitRendererToArena(SpriteRenderer renderer, float viewportX, float viewportY, float widthRatio, float heightRatio, bool flip)
@@ -334,16 +304,24 @@ namespace PokeIdle
             renderer.transform.localScale = new Vector3(arenaCamera.orthographicSize * 0.55f, arenaCamera.orthographicSize * 0.08f, 1f);
         }
 
-        private void FitHordeRenderer(SpriteRenderer renderer, int index)
+        private void HideHordeRenderers()
         {
-            if (renderer == null || renderer.sprite == null)
+            if (hordeRenderers == null)
             {
                 return;
             }
 
-            bool comesFromLeft = index % 2 == 0;
-            renderer.transform.localScale = Vector3.one * (arenaCamera.orthographicSize * 0.22f / Mathf.Max(0.01f, renderer.sprite.bounds.size.y));
-            renderer.flipX = !comesFromLeft;
+            for (int i = 0; i < hordeRenderers.Count; i++)
+            {
+                SpriteRenderer renderer = hordeRenderers[i];
+                if (renderer == null)
+                {
+                    continue;
+                }
+
+                renderer.enabled = false;
+                renderer.sprite = null;
+            }
         }
 
         private float GetEnemyViewportX()
