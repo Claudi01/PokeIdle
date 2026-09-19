@@ -6,8 +6,11 @@ Abra `Assets/Resources/PokeIdle/Config/GameBalanceConfig.asset` na janela Projec
 
 - `Starting Creature Level`: nivel inicial do Charmander.
 - `Tick Interval Seconds`: intervalo entre as acoes automaticas.
-- `Phases Per World`: quantidade de fases numeradas de 1 a 10 em cada mundo.
+- `Phases Per World`: ultima fase padrão. O mundo 1 usa `1-0` até `1-N`; os demais usam `2-1` até `2-N`.
 - `Enemies Per Phase`: quantidade de inimigos em cada fase; o ultimo e o boss.
+- `Global Max Level`: limite absoluto de nivel (100 por padrao; libera o Prestige no futuro).
+- `Default World Level Cap` e `World Level Cap Growth`: limite do Pokemon por mundo. O padrao e 10 no mundo 1, 20 no mundo 2, 30 no mundo 3 etc.
+- `Auto Save Interval Seconds`: save automatico entre 30 e 60 segundos. Compras, derrotas e conclusoes de fase salvam imediatamente.
 - `Base Gold...`: recompensa de ouro.
 - `Base Level Up Cost`: custo em moedas para subir do nivel atual para o proximo.
 - `Level Up Cost Growth`: aumento do custo a cada novo nivel.
@@ -15,7 +18,9 @@ Abra `Assets/Resources/PokeIdle/Config/GameBalanceConfig.asset` na janela Projec
 - `Enemy Levels Per Phase`: crescimento base por fase (1.25 por padrao).
 - `Enemy Player Level Ratio`: piso relativo ao nivel do jogador na primeira visita (0.9 = 90%).
 
-A dificuldade e fixada ao entrar pela primeira vez em uma fase e salva. Upar dentro dela ou voltar para farmar nao aumenta os inimigos daquela fase. O calculo inicial e o maior entre `1 + floor(((mundo - 1) * Phases Per World + fase) * Enemy Levels Per Phase)` e `floor(nivel do jogador * Enemy Player Level Ratio)`. O boss recebe mais 2 niveis. Por exemplo: chegando a `2-1` no nivel 17, os inimigos ficam no nivel 15 e o boss no 17. Alteracoes na curva afetam fases ainda nao visitadas; use o reset apenas se quiser testar uma nova run completa.
+A dificuldade e fixada ao entrar pela primeira vez em uma fase e salva. Upar dentro dela ou voltar para farmar nao aumenta os inimigos daquela fase. O calculo inicial usa o maior valor entre a curva acumulada de fases e `floor(nivel do jogador * Enemy Player Level Ratio)`, sempre respeitando o limite do mundo. O boss recebe o `Boss Level Bonus`, sem ultrapassar esse limite. Por exemplo: chegando a `2-1` no nivel 17, os inimigos ficam no nivel 15 e o boss no 17; voltar depois no nivel 30 nao muda esse snapshot. Alteracoes na curva afetam fases ainda nao visitadas; use o reset apenas se quiser testar uma nova run completa.
+
+Para criar um mundo com quantidade ou limite diferente, adicione uma entrada em `World Overrides` no Inspector. `Last Phase Number` define o ultimo identificador da fase, `Level Cap` define o limite daquele mundo e `Enemies Per Phase` altera a quantidade padrão de encontros. Para uma excecao isolada, use `Phase Overrides` e informe `World Number`, `Phase Number`, `Normal Enemy Level` ou `Enemies In Phase`; valor zero usa a regra global. Assim, o balanceamento combina fórmula geral com ajustes manuais por mundo/fase.
 
 Para alterar os encontros, abra um asset de criatura em `Assets/Resources/PokeIdle/Demo/Creatures`. `Wild Spawn Weight` controla a frequência de aparição; a criatura com maior peso entre as disponíveis define o boss da fase. `Evolution Target` define qual evolução será usada como boss.
 
@@ -65,6 +70,6 @@ Em `MENU > POKEMON`, Charmander pode evoluir para Charmeleon a partir do nivel 1
 
 Squirtle entra nos encontros do mundo 2, com peso 4; com os outros pesos atuais, tem 25% de chance por encontro normal. A disponibilidade por mundo esta em `DemoContent.cs`. O peso e editavel no asset `Squirtle`.
 
-Saves v5 mantem moedas, nivel, itens, fase e retorno para a fase perdida. Recebem os dois golpes iniciais. Saves v6 tambem guardam compras, slots, forma evoluida e dificuldade por fase.
+Saves v5 mantem moedas, nivel, itens, fase e retorno para a fase perdida. Recebem os dois golpes iniciais. Saves v6 tambem guardam compras, slots, forma evoluida e dificuldade por fase. O arquivo agora e escrito primeiro como `pokeidle_save.json.tmp` e substituido atomicamente; se a Unity for encerrada durante a troca, o carregamento tenta recuperar o arquivo temporario completo.
 
 Para conferir a regressao sem alterar seu save, pare o Play Mode e use `PokeIdle > Validate Progression`. Os testes usam instancias separadas em memoria e aparecem no Console.

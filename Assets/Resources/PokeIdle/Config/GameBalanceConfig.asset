@@ -16,6 +16,11 @@ MonoBehaviour:
   tickIntervalSeconds: 1
   phasesPerWorld: 10
   enemiesPerPhase: 10
+  globalMaxLevel: 100
+  defaultWorldLevelCap: 10
+  worldLevelCapGrowth: 10
+  worldOverrides: []
+  phaseOverrides: []
   baseGoldReward: 4
   goldWorldBonus: 1
   baseLevelUpCost: 25
@@ -24,3 +29,4 @@ MonoBehaviour:
   enemyPlayerLevelRatio: 0.9
   bossLevelBonus: 2
   bossHealthMultiplier: 1.6
+  autoSaveIntervalSeconds: 45

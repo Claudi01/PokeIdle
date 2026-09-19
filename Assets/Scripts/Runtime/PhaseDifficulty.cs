@@ -24,7 +24,8 @@ namespace PokeIdle
                     EnemyLevel = ProgressionRules.GetEnemyLevel(world, phase, playerLevel) };
                 records.Add(found);
             }
-            return found.EnemyLevel + (boss ? ProgressionRules.BossLevelBonus : 0);
+            int level = found.EnemyLevel + (boss ? ProgressionRules.BossLevelBonus : 0);
+            return ProgressionRules.ClampLevelToWorld(world, level);
         }
 
         public void Restore(List<PhaseDifficultyRecord> saved)
@@ -35,7 +36,12 @@ namespace PokeIdle
                 if (record != null && record.World >= 1 && record.Phase >= 0 && record.EnemyLevel > 0
                     && record.EnemyLevel <= int.MaxValue - 100
                     && !records.Exists(r => r.World == record.World && r.Phase == record.Phase))
-                    records.Add(new PhaseDifficultyRecord { World = record.World, Phase = record.Phase, EnemyLevel = record.EnemyLevel });
+                    records.Add(new PhaseDifficultyRecord
+                    {
+                        World = record.World,
+                        Phase = record.Phase,
+                        EnemyLevel = ProgressionRules.ClampLevelToWorld(record.World, record.EnemyLevel)
+                    });
         }
 
         public List<PhaseDifficultyRecord> Export()

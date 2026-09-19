@@ -13,6 +13,7 @@ namespace PokeIdle
         private PlayerInventory inventory = new PlayerInventory();
         private PhaseDifficulty difficulty = new PhaseDifficulty();
         private float tickTimer;
+        private float autoSaveTimer;
         private bool initialized;
         private bool hasRetryPhase;
         private int retryWorldNumber = 1;
@@ -27,8 +28,16 @@ namespace PokeIdle
         public int StageNumber { get { return WorldNumber; } }
         public int PhaseNumber { get; private set; }
         public int EncounterProgress { get; private set; }
-        public int PhasesPerWorld { get { return ProgressionRules.GetPhasesPerWorld(); } }
-        public int EnemiesPerPhase { get { return ProgressionRules.GetEnemiesPerPhase(); } }
+        public int FirstPhaseNumber { get { return ProgressionRules.GetFirstPhaseNumber(WorldNumber); } }
+        public int LastPhaseNumber { get { return ProgressionRules.GetLastPhaseNumber(WorldNumber); } }
+        public int PhasesPerWorld { get { return ProgressionRules.GetPhaseCount(WorldNumber); } }
+        public int EnemiesPerPhase { get { return ProgressionRules.GetEnemiesInPhase(WorldNumber, PhaseNumber); } }
+        public int GlobalLevelCap { get { return ProgressionRules.GetGlobalMaxLevel(); } }
+        public int WorldLevelCap { get { return ProgressionRules.GetWorldLevelCap(WorldNumber); } }
+        public bool IsAtLevelCap
+        {
+            get { return PlayerCreature != null && PlayerCreature.Level >= Mathf.Min(GlobalLevelCap, WorldLevelCap); }
+        }
         public bool IsPaused { get; private set; }
         public BattlePhase Phase { get; private set; } = BattlePhase.Searching;
         public PlayerInventory Inventory { get { return inventory; } }
@@ -74,7 +83,18 @@ namespace PokeIdle
 
         private void Update()
         {
-            if (!initialized || IsPaused)
+            if (!initialized)
+            {
+                return;
+            }
+
+            autoSaveTimer += Time.unscaledDeltaTime;
+            if (autoSaveTimer >= ProgressionRules.GetAutoSaveIntervalSeconds())
+            {
+                SaveNowSilently();
+            }
+
+            if (IsPaused)
             {
                 return;
             }
@@ -120,6 +140,7 @@ namespace PokeIdle
             PhaseNumber = usesPhaseProgression
                 ? Mathf.Max(0, save.PhaseNumber)
                 : 0;
+            PhaseNumber = Mathf.Clamp(PhaseNumber, FirstPhaseNumber, LastPhaseNumber);
             EncounterProgress = usesPhaseProgression
                 ? Mathf.Clamp(save.EncounterProgress, 0, EnemiesPerPhase - 1)
                 : save != null ? Mathf.Clamp(save.RouteProgress, 0, EnemiesPerPhase - 1) : 0;
@@ -130,7 +151,13 @@ namespace PokeIdle
 
             hasRetryPhase = usesPhaseProgression && save.HasRetryPhase;
             retryWorldNumber = usesPhaseProgression ? Mathf.Max(1, save.RetryWorldNumber) : 1;
-            retryPhaseNumber = usesPhaseProgression ? Mathf.Max(0, save.RetryPhaseNumber) : 0;
+            retryPhaseNumber = usesPhaseProgression
+                ? Mathf.Clamp(save.RetryPhaseNumber,
+                    ProgressionRules.GetFirstPhaseNumber(retryWorldNumber),
+                    ProgressionRules.GetLastPhaseNumber(retryWorldNumber))
+                : 0;
+            PlayerCreature.Level = Mathf.Clamp(PlayerCreature.Level, 1, WorldLevelCap);
+            PlayerCreature.EnsureValid();
             difficulty.Restore(save == null ? null : save.PhaseDifficulties);
             difficulty.GetLevel(WorldNumber, PhaseNumber, PlayerCreature.Level, false);
 
@@ -149,6 +176,7 @@ namespace PokeIdle
 
             inventory.EnsureValid();
             Phase = BattlePhase.Searching;
+            autoSaveTimer = 0f;
             initialized = true;
             LastEvent = "Expedicao iniciada. O combate acontece a cada segundo.";
             NotifyInventoryChanged();
@@ -181,7 +209,7 @@ namespace PokeIdle
                 return;
             }
 
-            SaveService.Save(CreateSaveData());
+            SaveNowSilently();
             LastEvent = "Progresso salvo.";
             NotifyStateChanged();
         }
@@ -211,6 +239,7 @@ namespace PokeIdle
             Phase = BattlePhase.Searching;
             IsPaused = false;
             tickTimer = 0f;
+            autoSaveTimer = 0f;
             inventory = new PlayerInventory();
             initialized = true;
 
@@ -241,7 +270,6 @@ namespace PokeIdle
                 SpawnEnemy();
                 // O encontro ocupa um tick de aproximação antes do primeiro golpe.
                 // Isso dá tempo para a arena mostrar o inimigo entrando em linha reta.
-                SaveNowSilently();
                 NotifyStateChanged();
                 return;
             }
@@ -267,7 +295,6 @@ namespace PokeIdle
                 RewardEnemyDefeat();
             }
 
-            SaveNowSilently();
             NotifyStateChanged();
         }
 
@@ -423,6 +450,7 @@ namespace PokeIdle
                 LastEvent += " Fase concluida! Proxima fase desbloqueada e HP restaurado.";
                 LastEvent += " Bonus da fase: +1 Pocao.";
                 NotifyInventoryChanged();
+                SaveNowSilently();
             }
 
             // Mantem o inimigo derrotado ate o proximo tick para evitar um frame vazio.
@@ -431,14 +459,14 @@ namespace PokeIdle
 
         private void AdvanceToNextPhase()
         {
-            if (PhaseNumber < PhasesPerWorld)
+            if (PhaseNumber < LastPhaseNumber)
             {
                 PhaseNumber++;
             }
             else
             {
                 WorldNumber++;
-                PhaseNumber = 1;
+                PhaseNumber = ProgressionRules.GetFirstPhaseNumber(WorldNumber);
             }
 
             EncounterProgress = 0;
@@ -456,19 +484,20 @@ namespace PokeIdle
             int failedPhase = PhaseNumber;
             int previousWorld = WorldNumber;
             int previousPhase = PhaseNumber;
+            int firstPhase = ProgressionRules.GetFirstPhaseNumber(previousWorld);
 
-            if (previousPhase > 1)
+            if (previousPhase > firstPhase)
             {
                 previousPhase--;
             }
             else if (previousWorld > 1)
             {
                 previousWorld--;
-                previousPhase = PhasesPerWorld;
+                previousPhase = ProgressionRules.GetLastPhaseNumber(previousWorld);
             }
-            else if (previousPhase == 1)
+            else
             {
-                previousPhase = 0;
+                previousPhase = firstPhase;
             }
 
             hasRetryPhase = previousWorld != failedWorld || previousPhase != failedPhase;
@@ -557,6 +586,21 @@ namespace PokeIdle
                 return false;
             }
 
+            if (PlayerCreature.Level >= GlobalLevelCap)
+            {
+                LastEvent = "Nivel maximo global atingido (" + GlobalLevelCap + ").";
+                NotifyStateChanged();
+                return false;
+            }
+
+            if (PlayerCreature.Level >= WorldLevelCap)
+            {
+                LastEvent = "Limite do mundo atingido (nivel " + WorldLevelCap
+                    + "). Avance para o proximo mundo para continuar evoluindo.";
+                NotifyStateChanged();
+                return false;
+            }
+
             int cost = LevelUpCost;
             if (Gold < cost)
             {
@@ -623,6 +667,7 @@ namespace PokeIdle
             }
 
             SaveService.Save(CreateSaveData());
+            autoSaveTimer = 0f;
         }
 
         private PlayerSaveData CreateSaveData()

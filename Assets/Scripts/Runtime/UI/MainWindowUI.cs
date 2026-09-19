@@ -74,7 +74,7 @@ namespace PokeIdle
 
             CreatureInstance player = loop.PlayerCreature;
             GUI.Label(new Rect(panel.x + 8f, panel.y + 3f, width - 16f, 16f),
-                player.Definition.CreatureName + "  Nv " + player.Level,
+                player.Definition.CreatureName + "  Nv " + player.Level + "/" + loop.WorldLevelCap,
                 labelStyle);
             DrawHealthBar(new Rect(panel.x + 8f, panel.y + 23f, width - 16f, 8f), player.CurrentHP, player.MaxHP, new Color(0.25f, 0.88f, 0.42f));
         }
@@ -118,7 +118,8 @@ namespace PokeIdle
             Rect panel = new Rect(Screen.width - menuWidth - 6f, 6f, menuWidth, menuHeight);
             DrawPanel(panel, new Color(0.025f, 0.035f, 0.055f, 0.98f));
             GUI.Label(new Rect(panel.x + 12f, panel.y + 8f, panel.width - 60f, 24f),
-                loop.PlayerCreature.Definition.CreatureName + "  |  Nv " + loop.PlayerCreature.Level, menuHeaderStyle);
+                loop.PlayerCreature.Definition.CreatureName + "  |  Nv " + loop.PlayerCreature.Level
+                + "/" + loop.WorldLevelCap, menuHeaderStyle);
             if (GUI.Button(new Rect(panel.xMax - 42f, panel.y + 7f, 30f, 25f), "X", buttonStyle))
             {
                 SetMenuOpen(false);
@@ -126,7 +127,8 @@ namespace PokeIdle
             }
             GUI.Label(new Rect(panel.x + 12f, panel.y + 34f, panel.width - 24f, 20f),
                 "MOEDAS " + loop.Gold + "   |   FASE " + loop.CurrentPhaseLabel
-                + "   |   INIMIGOS Nv " + loop.NormalEnemyLevel, smallLabelStyle);
+                + "   |   INIMIGOS Nv " + loop.NormalEnemyLevel
+                + "   |   LIMITE " + loop.WorldLevelCap, smallLabelStyle);
             int tab = GUI.Toolbar(new Rect(panel.x + 12f, panel.y + 58f, panel.width - 24f, 26f),
                 menuTab, new[] { "POKEMON", "GOLPES", "ITENS" }, buttonStyle);
             if (tab != menuTab) { menuTab = tab; menuScroll = Vector2.zero; }
@@ -172,7 +174,10 @@ namespace PokeIdle
             y += 25f;
             DrawHealthBar(new Rect(0f, y, width, 8f), player.CurrentHP, player.MaxHP, new Color(0.25f, 0.88f, 0.42f));
             y += 18f;
-            if (GUI.Button(new Rect(0f, y, width, 28f), "UPAR  |  " + loop.LevelUpCost + " moedas", buttonStyle))
+            string levelUpLabel = loop.IsAtLevelCap
+                ? "LIMITE DO MUNDO  |  Nv " + loop.WorldLevelCap
+                : "UPAR  |  " + loop.LevelUpCost + " moedas";
+            if (GUI.Button(new Rect(0f, y, width, 28f), levelUpLabel, buttonStyle))
             {
                 loop.TryLevelUpWithGold();
                 progressionMessage = loop.LastEvent;

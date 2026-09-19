@@ -24,7 +24,7 @@ namespace PokeIdle.Editor
                 Check(content.Starter != null && content.Starter.SkillTree.Count == 8, "Eight skill nodes loaded");
                 Check(content.Starter.EvolutionTarget != null && content.Starter.EvolutionTarget.CreatureName == "Charmeleon", "Evolution asset linked");
                 Check(content.Starter.EvolutionTarget.SpriteFront != null && content.Starter.EvolutionTarget.SpriteBack != null, "Charmeleon sprites imported");
-                TestDifficulty();
+                TestDifficulty(config);
                 TestMoves(content);
                 TestEvolutionAndSave(content);
                 TestEncounters(content);
@@ -45,7 +45,7 @@ namespace PokeIdle.Editor
             catch (Exception exception) { Debug.LogException(exception); EditorApplication.Exit(1); }
         }
 
-        private static void TestDifficulty()
+        private static void TestDifficulty(GameBalanceConfig config)
         {
             var difficulty = new PhaseDifficulty();
             int start = difficulty.GetLevel(1, 0, 1, false);
@@ -61,6 +61,51 @@ namespace PokeIdle.Editor
             restored.Restore(difficulty.Export());
             Check(restored.GetLevel(2, 1, 80, false) == secondWorld, "Difficulty snapshot survives restore");
             Check(ProgressionRules.CalculateEnemyLevel(1, 1, 20, 10, 1.25f, 0.9f) == 18, "Ratio boundary rounding");
+            var bossSnapshot = new PhaseDifficulty();
+            Check(bossSnapshot.GetLevel(1, 1, 2, true) == 4, "Boss starts two levels above its first-visit snapshot");
+            Check(bossSnapshot.GetLevel(1, 1, 4, true) == 4, "Boss snapshot does not scale while farming");
+            var cappedPhase = new PhaseDifficulty();
+            Check(cappedPhase.GetLevel(1, 5, 100, false) == 10
+                && cappedPhase.GetLevel(1, 5, 100, true) == 10,
+                "World level cap applies to normal enemies and bosses");
+
+            Check(config.GetFirstPhaseNumber(1) == 0 && config.GetFirstPhaseNumber(2) == 1,
+                "World one starts at phase zero and later worlds at phase one");
+            Check(config.GetPhaseCount(1) == 11 && config.GetPhaseCount(2) == 10,
+                "Default phase counts preserve the current route format");
+
+            SerializedObject serializedConfig = new SerializedObject(config);
+            SerializedProperty worlds = serializedConfig.FindProperty("worldOverrides");
+            worlds.arraySize = 2;
+            SetWorldOverride(worlds.GetArrayElementAtIndex(0), 1, 5, 10, 0);
+            SetWorldOverride(worlds.GetArrayElementAtIndex(1), 2, 7, 20, 0);
+            serializedConfig.ApplyModifiedPropertiesWithoutUndo();
+            Check(config.GetPhaseCount(1) == 6 && config.GetLastPhaseNumber(1) == 5,
+                "World override supports a variable six-phase world");
+            Check(config.GetPhaseCount(2) == 7 && config.GetLastPhaseNumber(2) == 7,
+                "World override supports a variable seven-phase world");
+            Check(config.GetWorldLevelCap(1) == 10 && config.GetWorldLevelCap(2) == 20,
+                "World overrides preserve explicit level caps");
+
+            SerializedProperty phases = serializedConfig.FindProperty("phaseOverrides");
+            phases.arraySize = 1;
+            SerializedProperty phase = phases.GetArrayElementAtIndex(0);
+            phase.FindPropertyRelative("WorldNumber").intValue = 1;
+            phase.FindPropertyRelative("PhaseNumber").intValue = 2;
+            phase.FindPropertyRelative("NormalEnemyLevel").intValue = 8;
+            phase.FindPropertyRelative("EnemiesInPhase").intValue = 3;
+            serializedConfig.ApplyModifiedPropertiesWithoutUndo();
+            Check(config.GetEnemyLevel(1, 2, 1) == 8 && config.GetEnemiesInPhase(1, 2) == 3,
+                "Phase override supports manual level and encounter count");
+        }
+
+        private static void SetWorldOverride(SerializedProperty property, int world, int lastPhase,
+            int levelCap, int enemiesPerPhase)
+        {
+            property.FindPropertyRelative("WorldNumber").intValue = world;
+            property.FindPropertyRelative("LastPhaseNumber").intValue = lastPhase;
+            property.FindPropertyRelative("LevelCap").intValue = levelCap;
+            property.FindPropertyRelative("EnemiesPerPhase").intValue = enemiesPerPhase;
         }
 
         private static void TestMoves(DemoContentSet content)
