@@ -20,6 +20,8 @@ namespace PokeIdle
     public sealed class PlayerSaveData
     {
         public int Version = ProgressionRules.SaveVersion;
+        public int Dindin;
+        // Legacy field kept so saves from version 6 can be migrated safely.
         public int Gold;
         public int TotalDefeated;
         public int RouteNumber = 1;
@@ -33,6 +35,13 @@ namespace PokeIdle
         public int RetryWorldNumber = 1;
         public int RetryPhaseNumber;
         public CreatureSaveData ActiveCreature;
+        public List<CreatureSaveData> Party;
+        public List<CreatureSaveData> PCBox;
+        public int UnlockedPartySlots = 1;
+        public int BoxCapacity;
+        public string PendingLeaderInstanceId;
+        public string PendingBoxInstanceId;
+        public string PendingPartyInstanceId;
         public List<PhaseDifficultyRecord> PhaseDifficulties;
         public List<InventoryItemStack> Inventory = new List<InventoryItemStack>();
     }
@@ -43,16 +52,22 @@ namespace PokeIdle
 
         public static CreatureInstance RestoreCreature(CreatureSaveData saved, DemoContentSet content, bool hasMoveLoadout)
         {
+            return RestoreCreature(saved, content, hasMoveLoadout, true);
+        }
+
+        public static CreatureInstance RestoreCreature(CreatureSaveData saved, DemoContentSet content,
+            bool hasMoveLoadout, bool reviveIfFainted)
+        {
             CreatureDefinition definition = content.FindCreature(saved == null ? content.Starter.Id : saved.CreatureId) ?? content.Starter;
             var creature = new CreatureInstance(definition, saved == null
-                ? ProgressionRules.StartingCreatureLevel : Mathf.Max(ProgressionRules.StartingCreatureLevel, saved.Level));
+                ? ProgressionRules.StartingCreatureLevel : Mathf.Clamp(saved.Level, 1, ProgressionRules.GetGlobalMaxLevel()));
             if (saved != null && saved.CreatureId == definition.Id)
             {
                 creature.CurrentHP = saved.CurrentHP;
                 if (!string.IsNullOrEmpty(saved.InstanceId)) creature.InstanceId = saved.InstanceId;
                 if (hasMoveLoadout) creature.RestoreMoves(saved.LearnedMoveIds, saved.EquippedMoveIds);
             }
-            creature.EnsureValid();
+            creature.EnsureValid(reviveIfFainted);
             return creature;
         }
 
@@ -66,17 +81,22 @@ namespace PokeIdle
             get { return SavePath + TemporarySaveSuffix; }
         }
 
-        public static void Save(PlayerSaveData data)
+        public static bool Save(PlayerSaveData data)
+        {
+            return SaveToPath(data, SavePath);
+        }
+
+        public static bool SaveToPath(PlayerSaveData data, string path)
         {
             if (data == null)
             {
-                return;
+                return false;
             }
 
             try
             {
                 string json = JsonUtility.ToJson(data, true);
-                string directory = Path.GetDirectoryName(SavePath);
+                string directory = Path.GetDirectoryName(path);
                 if (!string.IsNullOrEmpty(directory))
                 {
                     Directory.CreateDirectory(directory);
@@ -84,34 +104,34 @@ namespace PokeIdle
 
                 // Write the complete file first, then replace the previous save in
                 // one filesystem operation. A crash cannot leave half a JSON file.
-                File.WriteAllText(TemporarySavePath, json);
-                if (File.Exists(SavePath))
+                File.WriteAllText(path + TemporarySaveSuffix, json);
+                if (File.Exists(path))
                 {
-                    File.Replace(TemporarySavePath, SavePath, null);
+                    // Keep the last valid generation for recovery after disk corruption.
+                    File.Replace(path + TemporarySaveSuffix, path, path + ".bak");
                 }
                 else
                 {
-                    File.Move(TemporarySavePath, SavePath);
+                    File.Move(path + TemporarySaveSuffix, path);
                 }
+                return true;
             }
             catch (Exception exception)
             {
-                try
-                {
-                    if (File.Exists(TemporarySavePath)) File.Delete(TemporarySavePath);
-                }
-                catch (Exception cleanupException)
-                {
-                    Debug.LogWarning("Nao foi possivel limpar o save temporario: " + cleanupException.Message);
-                }
-
+                // Retain a complete temporary file if the final replace failed.
                 Debug.LogError("Nao foi possivel salvar o progresso: " + exception.Message);
+                return false;
             }
         }
 
         public static PlayerSaveData Load()
         {
-            PlayerSaveData save = TryLoad(SavePath);
+            return LoadFromPath(SavePath);
+        }
+
+        public static PlayerSaveData LoadFromPath(string path)
+        {
+            PlayerSaveData save = TryLoad(path);
             if (save != null)
             {
                 return save;
@@ -119,7 +139,7 @@ namespace PokeIdle
 
             // A temporary file may be the only complete file if the process ended
             // between writing it and the final rename.
-            return TryLoad(TemporarySavePath);
+            return TryLoad(path + TemporarySaveSuffix) ?? TryLoad(path + ".bak");
         }
 
         private static PlayerSaveData TryLoad(string path)
@@ -132,7 +152,12 @@ namespace PokeIdle
             try
             {
                 string json = File.ReadAllText(path);
-                return JsonUtility.FromJson<PlayerSaveData>(json);
+                PlayerSaveData data = JsonUtility.FromJson<PlayerSaveData>(json);
+                if (data == null || (!(data.ActiveCreature != null && data.ActiveCreature.CreatureId > 0
+                    && data.ActiveCreature.Level > 0) && (data.Party == null || !data.Party.Exists(
+                        c => c != null && c.CreatureId > 0 && c.Level > 0))))
+                    return null;
+                return data;
             }
             catch (Exception exception)
             {

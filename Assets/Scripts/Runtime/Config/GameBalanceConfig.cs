@@ -59,9 +59,9 @@ namespace PokeIdle
         [SerializeField] private List<WorldBalanceSettings> worldOverrides = new List<WorldBalanceSettings>();
         [SerializeField] private List<PhaseBalanceSettings> phaseOverrides = new List<PhaseBalanceSettings>();
 
-        [Header("Ouro")]
-        [SerializeField, Min(0)] private int baseGoldReward = 4;
-        [SerializeField, Min(0)] private int goldWorldBonus = 1;
+        [Header("Dindin")]
+        [SerializeField, Min(0)] private int baseDindinReward = 4;
+        [SerializeField, Min(0)] private int dindinWorldBonus = 1;
 
         [Header("Nivel por moedas")]
         [SerializeField, Min(1)] private int baseLevelUpCost = 25;
@@ -78,6 +78,18 @@ namespace PokeIdle
         [Header("Save")]
         [SerializeField, Range(30f, 60f)] private float autoSaveIntervalSeconds = 45f;
 
+        [Header("Party")]
+        [SerializeField, Min(1)] private int startingPartySlots = 1;
+        [SerializeField, Min(1)] private int maxPartySlots = 3;
+        [SerializeField, Min(1)] private int partySlotBaseCost = 150;
+        [SerializeField, Min(0)] private int partySlotCostGrowth = 150;
+
+        [Header("PC Box")]
+        [SerializeField, Min(1)] private int initialBoxCapacity = 30;
+        [SerializeField, Min(1)] private int boxExpansionSize = 10;
+        [SerializeField, Min(1)] private int boxExpansionBaseCost = 100;
+        [SerializeField, Min(0)] private int boxExpansionCostGrowth = 50;
+
         public int StartingCreatureLevel { get { return Mathf.Max(1, startingCreatureLevel); } }
         public float TickIntervalSeconds { get { return Mathf.Max(0.1f, tickIntervalSeconds); } }
         // Legacy name kept for existing Inspector assets and scripts. It is the
@@ -87,6 +99,10 @@ namespace PokeIdle
         public int GlobalMaxLevel { get { return Mathf.Max(1, globalMaxLevel); } }
         public float BossHealthMultiplier { get { return Mathf.Max(1f, bossHealthMultiplier); } }
         public float AutoSaveIntervalSeconds { get { return Mathf.Clamp(autoSaveIntervalSeconds, 30f, 60f); } }
+        public int StartingPartySlots { get { return Mathf.Clamp(startingPartySlots, 1, MaxPartySlots); } }
+        public int MaxPartySlots { get { return Mathf.Max(1, maxPartySlots); } }
+        public int InitialBoxCapacity { get { return Mathf.Max(1, initialBoxCapacity); } }
+        public int BoxExpansionSize { get { return Mathf.Max(1, boxExpansionSize); } }
 
         public int GetFirstPhaseNumber(int worldNumber)
         {
@@ -137,6 +153,18 @@ namespace PokeIdle
             return Mathf.Max(1, baseLevelUpCost + (normalizedLevel - 1) * levelUpCostGrowth);
         }
 
+        public int GetPartySlotCost(int slotNumber)
+        {
+            int normalizedSlot = Mathf.Max(2, slotNumber);
+            return Mathf.Max(1, partySlotBaseCost + (normalizedSlot - 2) * partySlotCostGrowth);
+        }
+
+        public int GetBoxExpansionCost(int currentCapacity)
+        {
+            int expansions = Mathf.Max(0, (currentCapacity - InitialBoxCapacity) / BoxExpansionSize);
+            return Mathf.Max(1, boxExpansionBaseCost + expansions * boxExpansionCostGrowth);
+        }
+
         public int GetEnemyLevel(int worldNumber, int phaseNumber, int playerLevel)
         {
             PhaseBalanceSettings phaseSettings = FindPhaseSettings(worldNumber, phaseNumber);
@@ -156,11 +184,16 @@ namespace PokeIdle
 
         public int BossLevelBonus { get { return Mathf.Max(0, bossLevelBonus); } }
 
-        public int GetGoldReward(int enemyLevel, int worldNumber)
+        public int GetDindinReward(int enemyLevel, int worldNumber)
         {
             int normalizedEnemyLevel = Mathf.Max(1, enemyLevel);
-            int worldBonus = Mathf.Max(0, worldNumber - 1) * goldWorldBonus;
-            return Mathf.Max(1, baseGoldReward + normalizedEnemyLevel + worldBonus);
+            int worldBonus = Mathf.Max(0, worldNumber - 1) * dindinWorldBonus;
+            return Mathf.Max(1, baseDindinReward + normalizedEnemyLevel + worldBonus);
+        }
+
+        public int GetGoldReward(int enemyLevel, int worldNumber)
+        {
+            return GetDindinReward(enemyLevel, worldNumber);
         }
 
         public void ResetToDefaults()
@@ -174,8 +207,8 @@ namespace PokeIdle
             worldLevelCapGrowth = 10;
             worldOverrides = new List<WorldBalanceSettings>();
             phaseOverrides = new List<PhaseBalanceSettings>();
-            baseGoldReward = 4;
-            goldWorldBonus = 1;
+            baseDindinReward = 4;
+            dindinWorldBonus = 1;
             baseLevelUpCost = 25;
             levelUpCostGrowth = 15;
             enemyLevelsPerPhase = 1.25f;
@@ -183,6 +216,14 @@ namespace PokeIdle
             bossLevelBonus = 2;
             bossHealthMultiplier = 1.6f;
             autoSaveIntervalSeconds = 45f;
+            startingPartySlots = 1;
+            maxPartySlots = 3;
+            partySlotBaseCost = 150;
+            partySlotCostGrowth = 150;
+            initialBoxCapacity = 30;
+            boxExpansionSize = 10;
+            boxExpansionBaseCost = 100;
+            boxExpansionCostGrowth = 50;
         }
 
         private int GetWorldPhaseIndex(int worldNumber, int phaseNumber)

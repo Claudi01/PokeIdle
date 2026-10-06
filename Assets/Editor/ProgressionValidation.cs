@@ -56,7 +56,7 @@ namespace PokeIdle.Editor
             Check(difficulty.GetLevel(2, 1, 17, true) == 17, "Boss is normal level plus two");
             Check(difficulty.GetLevel(2, 1, 30, false) == secondWorld, "Level purchases do not strengthen the same phase");
             Check(difficulty.GetLevel(1, 0, 30, false) == start, "Farmed phase stays easier");
-            Check(difficulty.GetLevel(2, 2, 30, false) == 27, "New phase responds to stronger player");
+            Check(difficulty.GetLevel(2, 2, 30, false) == 20, "New phase responds to stronger player within world cap");
             var restored = new PhaseDifficulty();
             restored.Restore(difficulty.Export());
             Check(restored.GetLevel(2, 1, 80, false) == secondWorld, "Difficulty snapshot survives restore");
@@ -97,6 +97,7 @@ namespace PokeIdle.Editor
             serializedConfig.ApplyModifiedPropertiesWithoutUndo();
             Check(config.GetEnemyLevel(1, 2, 1) == 8 && config.GetEnemiesInPhase(1, 2) == 3,
                 "Phase override supports manual level and encounter count");
+            config.ResetToDefaults();
         }
 
         private static void SetWorldOverride(SerializedProperty property, int world, int lastPhase,
@@ -190,6 +191,46 @@ namespace PokeIdle.Editor
             gold = 100;
             migrated.TryPurchaseSkill(7, ref gold, out message);
             Check(migrated.TryEquipMove(7, 3, out message) && migrated.EquippedMoveIds[3] == 7, "Equipment respects the selected fourth slot");
+
+            var faintReserve = new CreatureInstance(content.WildCreature, 4);
+            faintReserve.CurrentHP = 0;
+            var boxCreature = new CreatureInstance(content.WildEncounters.Find(e => e.Creature.CreatureName == "Squirtle").Creature, 5);
+            var collectionSave = new PlayerSaveData
+            {
+                Dindin = 321,
+                Gold = 321,
+                UnlockedPartySlots = 2,
+                BoxCapacity = 40,
+                Party = new List<CreatureSaveData>
+                {
+                    ToCreatureSaveData(player),
+                    ToCreatureSaveData(faintReserve)
+                },
+                PCBox = new List<CreatureSaveData> { ToCreatureSaveData(boxCreature) }
+            };
+            PlayerSaveData collectionLoaded = JsonUtility.FromJson<PlayerSaveData>(JsonUtility.ToJson(collectionSave));
+            CreatureInstance restoredFaintReserve = SaveService.RestoreCreature(
+                collectionLoaded.Party[1], content, true, false);
+            Check(collectionLoaded.Version == ProgressionRules.SaveVersion
+                && collectionLoaded.Dindin == 321
+                && collectionLoaded.UnlockedPartySlots == 2
+                && collectionLoaded.BoxCapacity == 40
+                && collectionLoaded.PCBox.Count == 1,
+                "Save preserves Dindin, Party slots and PC Box");
+            Check(restoredFaintReserve.IsFainted, "Fainted reserve remains fainted after loading a party save");
+        }
+
+        private static CreatureSaveData ToCreatureSaveData(CreatureInstance creature)
+        {
+            return new CreatureSaveData
+            {
+                CreatureId = creature.Definition.Id,
+                Level = creature.Level,
+                CurrentHP = creature.CurrentHP,
+                InstanceId = creature.InstanceId,
+                LearnedMoveIds = new List<int>(creature.LearnedMoveIds),
+                EquippedMoveIds = new List<int>(creature.EquippedMoveIds)
+            };
         }
 
         private static void TestEncounters(DemoContentSet content)

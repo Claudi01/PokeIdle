@@ -197,7 +197,12 @@ namespace PokeIdle
                 return;
             }
 
-            arenaCamera.orthographicSize = Application.isEditor ? cameraSizeInEditor : cameraSizeInBuild;
+            arenaCamera.orthographicSize = cameraSizeInBuild;
+            TaskbarIntegration taskbar = TaskbarIntegration.Instance;
+            arenaCamera.rect = taskbar == null
+                ? TaskbarLayout.CameraViewport(Screen.width, Screen.height)
+                : taskbar.GetGameplayViewport();
+            arenaCamera.aspect = arenaCamera.pixelWidth / Mathf.Max(1f, arenaCamera.pixelHeight);
             arenaCamera.transform.position = new Vector3(0f, 0f, -10f);
 
             CreatureInstance player = loop.PlayerCreature;
@@ -230,16 +235,16 @@ namespace PokeIdle
             enemyShadowRenderer.enabled = enemy != null;
 
             // O sprite traseiro do jogador ja esta orientado para o inimigo, que fica a direita.
-            FitRendererToArena(playerRenderer, playerViewportX, playerViewportY, 0.49f, 0.44f, false);
+            FitRendererToArena(playerRenderer, playerViewportX, playerViewportY, 0.49f, 1.2f, false);
             if (enemy != null)
             {
                 float enemyX = GetEnemyViewportX();
-                FitRendererToArena(enemyRenderer, enemyX, enemyViewportY, 0.49f, 0.44f, false);
+                FitRendererToArena(enemyRenderer, enemyX, enemyViewportY, 0.49f, 1.2f, false);
                 FitShadowToArena(enemyShadowRenderer, enemyX, enemyViewportY);
             }
 
             FitShadowToArena(playerShadowRenderer, playerViewportX, playerViewportY);
-            FitGroundToArena();
+            groundRenderer.enabled = false; // The illustrated strip contains its own ground.
             FitBackgroundToArena();
 
             // A arena exibe somente o inimigo atual. Os antigos visuais de horda ficam ocultos.
@@ -254,7 +259,8 @@ namespace PokeIdle
             }
 
             float deltaTime = Time.unscaledDeltaTime;
-            backgroundOffset = Mathf.Repeat(backgroundOffset + deltaTime * backgroundScrollSpeed * 0.1f, 1f);
+            if (loop.Phase != BattlePhase.Battling)
+                backgroundOffset = Mathf.Repeat(backgroundOffset - deltaTime * backgroundScrollSpeed * 0.1f, 1f);
 
             CreatureInstance enemy = loop.CurrentEnemy;
             if (approachEnemy != enemy)
@@ -435,8 +441,8 @@ namespace PokeIdle
                 return;
             }
 
-            float width = Mathf.Clamp(Screen.width * healthBarWidthRatio, 42f, 92f);
-            float height = Mathf.Clamp(Screen.height * 0.018f, 4f, 9f);
+            float width = Mathf.Clamp(arenaCamera.pixelWidth * healthBarWidthRatio, 58f, 88f);
+            float height = 5f;
             Rect barRect = new Rect(screenPosition.x - width * 0.5f, Screen.height - screenPosition.y - height, width, height);
             float ratio = creature.MaxHP <= 0 ? 0f : Mathf.Clamp01((float)creature.CurrentHP / creature.MaxHP);
 
@@ -445,7 +451,7 @@ namespace PokeIdle
             GUI.DrawTexture(barRect, Texture2D.whiteTexture);
             GUI.color = fillColor;
             GUI.DrawTexture(new Rect(barRect.x + 1f, barRect.y + 1f, Mathf.Max(0f, (barRect.width - 2f) * ratio), Mathf.Max(1f, barRect.height - 2f)), Texture2D.whiteTexture);
-            if (creature.IsBoss || Screen.height >= 100)
+            if (creature.IsBoss || arenaCamera.pixelHeight >= 100)
             {
                 string label = creature.IsBoss ? "BOSS  " : string.Empty;
                 label += creature.Definition.CreatureName + " Nv " + creature.Level;
@@ -577,55 +583,38 @@ namespace PokeIdle
 
         private static Sprite CreateBackgroundSprite()
         {
-            const int width = 128;
-            const int height = 64;
-            Texture2D texture = new Texture2D(width, height, TextureFormat.RGBA32, false);
-            texture.name = "Fallback_BackgroundTexture";
+            const int width = 272, height = 76;
+            var texture = new Texture2D(width, height, TextureFormat.RGBA32, false);
+            texture.name = "Taskbar_Woodland";
             texture.filterMode = FilterMode.Point;
-
-            Color[] pixels = new Color[width * height];
-            Color skyTop = new Color(0.035f, 0.075f, 0.14f, 1f);
-            Color skyBottom = new Color(0.09f, 0.16f, 0.24f, 1f);
-            Color distantHill = new Color(0.08f, 0.22f, 0.24f, 1f);
-            Color nearHill = new Color(0.05f, 0.14f, 0.18f, 1f);
-            Color ground = new Color(0.035f, 0.09f, 0.11f, 1f);
-            Color grass = new Color(0.22f, 0.48f, 0.25f, 1f);
-
+            var pixels = new Color[width * height];
+            Color sky = new Color32(30, 58, 64, 255), horizon = new Color32(68, 101, 88, 255);
             for (int y = 0; y < height; y++)
-            {
-                Color rowColor;
-                if (y < 40)
-                {
-                    rowColor = Color.Lerp(skyBottom, skyTop, y / 40f);
-                }
-                else
-                {
-                    rowColor = ground;
-                }
-
                 for (int x = 0; x < width; x++)
-                {
-                    pixels[y * width + x] = rowColor;
-                }
+                    pixels[y * width + x] = Color.Lerp(horizon, sky, Mathf.Clamp01((y - 20f) / 56));
+            // Distant hills and tree silhouettes, intentionally behind the combat silhouettes.
+            for (int x = 0; x < width; x++)
+            {
+                int hill = 34 + Mathf.RoundToInt(6 * Mathf.Sin(x * .045f) + 3 * Mathf.Sin(x * .09f));
+                for (int y = 19; y < hill; y++) pixels[y * width + x] = new Color32(44, 78, 65, 255);
             }
-
-            FillEllipse(pixels, width, 18, 35, 30, 12, distantHill);
-            FillEllipse(pixels, width, 82, 34, 34, 14, distantHill);
-            FillEllipse(pixels, width, 46, 39, 27, 9, nearHill);
-            FillEllipse(pixels, width, 112, 38, 28, 10, nearHill);
-            FillRect(pixels, width, 0, 39, width - 1, 42, grass);
-            FillRect(pixels, width, 0, 43, width - 1, 63, ground);
-
-            // Vegetacao simples em pixel art para tornar a rolagem perceptivel.
-            DrawBackgroundPlant(pixels, width, 12, 30, new Color(0.18f, 0.42f, 0.22f, 1f));
-            DrawBackgroundPlant(pixels, width, 58, 28, new Color(0.24f, 0.50f, 0.28f, 1f));
-            DrawBackgroundPlant(pixels, width, 103, 31, new Color(0.16f, 0.36f, 0.2f, 1f));
-            FillRect(pixels, width, 25, 48, 31, 49, new Color(0.15f, 0.28f, 0.25f, 1f));
-            FillRect(pixels, width, 76, 53, 86, 54, new Color(0.13f, 0.24f, 0.23f, 1f));
-
-            texture.SetPixels(pixels);
-            texture.Apply();
-            return Sprite.Create(texture, new Rect(0f, 0f, width, height), new Vector2(0.5f, 0.5f), width);
+            for (int x = 16; x < width; x += 58)
+            {
+                FillRect(pixels, width, x - 2, 18, x + 2, 46, new Color32(35, 54, 47, 255));
+                FillEllipse(pixels, width, x, 46, 16, 10, new Color32(36, 69, 54, 255));
+                FillEllipse(pixels, width, x - 8, 40, 11, 9, new Color32(48, 81, 57, 255));
+            }
+            FillRect(pixels, width, 0, 0, width - 1, 17, new Color32(80, 67, 47, 255));
+            FillRect(pixels, width, 0, 17, width - 1, 20, new Color32(83, 111, 59, 255));
+            FillRect(pixels, width, 0, 20, width - 1, 21, new Color32(135, 157, 81, 255));
+            for (int x = 3; x < width; x += 11)
+            {
+                FillRect(pixels, width, x, 21, x + 1, 23 + x % 3, new Color32(156, 176, 91, 255));
+                int y = 3 + x % 10;
+                FillRect(pixels, width, x, y, x + 3, y + 1, new Color32(105, 88, 56, 255));
+            }
+            texture.SetPixels(pixels); texture.Apply();
+            return Sprite.Create(texture, new Rect(0, 0, width, height), new Vector2(.5f, .5f), width);
         }
 
         private static void DrawBackgroundPlant(Color[] pixels, int size, int centerX, int baseY, Color color)

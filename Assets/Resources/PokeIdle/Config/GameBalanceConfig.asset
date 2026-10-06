@@ -21,8 +21,8 @@ MonoBehaviour:
   worldLevelCapGrowth: 10
   worldOverrides: []
   phaseOverrides: []
-  baseGoldReward: 4
-  goldWorldBonus: 1
+  baseDindinReward: 4
+  dindinWorldBonus: 1
   baseLevelUpCost: 25
   levelUpCostGrowth: 15
   enemyLevelsPerPhase: 1.25
@@ -30,3 +30,11 @@ MonoBehaviour:
   bossLevelBonus: 2
   bossHealthMultiplier: 1.6
   autoSaveIntervalSeconds: 45
+  startingPartySlots: 1
+  maxPartySlots: 3
+  partySlotBaseCost: 150
+  partySlotCostGrowth: 150
+  initialBoxCapacity: 30
+  boxExpansionSize: 10
+  boxExpansionBaseCost: 100
+  boxExpansionCostGrowth: 50

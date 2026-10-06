@@ -29,9 +29,19 @@ namespace PokeIdle
         public CreatureDefinition Starter;
         public CreatureDefinition WildCreature;
         public List<WildCreatureEncounter> WildEncounters = new List<WildCreatureEncounter>();
+        public List<CreatureDefinition> Creatures = new List<CreatureDefinition>();
 
         public CreatureDefinition FindCreature(int id)
         {
+            if (Creatures != null)
+            {
+                for (int i = 0; i < Creatures.Count; i++)
+                {
+                    CreatureDefinition registered = Creatures[i];
+                    if (registered != null && registered.Id == id) return registered;
+                }
+            }
+
             CreatureDefinition creature = Starter;
             for (int i = 0; creature != null && i < 10; i++, creature = creature.EvolutionTarget)
                 if (creature.Id == id) return creature;
@@ -44,6 +54,7 @@ namespace PokeIdle
         public static DemoContentSet Load()
         {
             CreatureDefinition starter = Resources.Load<CreatureDefinition>("PokeIdle/Demo/Creatures/Ember");
+            CreatureDefinition charmeleon = Resources.Load<CreatureDefinition>("PokeIdle/Demo/Creatures/Charmeleon");
             CreatureDefinition caterpie = Resources.Load<CreatureDefinition>("PokeIdle/Demo/Creatures/Buglet");
             CreatureDefinition metapod = Resources.Load<CreatureDefinition>("PokeIdle/Demo/Creatures/Metapod");
             CreatureDefinition weedle = Resources.Load<CreatureDefinition>("PokeIdle/Demo/Creatures/Weedle");
@@ -77,7 +88,8 @@ namespace PokeIdle
                 {
                     Starter = starter,
                     WildCreature = caterpie,
-                    WildEncounters = encounters
+                    WildEncounters = encounters,
+                    Creatures = BuildCreatureRegistry(starter, charmeleon, caterpie, metapod, weedle, pidgey, rattata, squirtle)
                 };
             }
 
@@ -182,8 +194,20 @@ namespace PokeIdle
                     new WildCreatureEncounter(pidgey, 1),
                     new WildCreatureEncounter(rattata, 1),
                     new WildCreatureEncounter(squirtle, 2)
-                }
+                },
+                Creatures = BuildCreatureRegistry(starter, charmeleon, caterpie, metapod, weedle, pidgey, rattata, squirtle)
             };
+        }
+
+        private static List<CreatureDefinition> BuildCreatureRegistry(params CreatureDefinition[] creatures)
+        {
+            var registry = new List<CreatureDefinition>();
+            for (int i = 0; i < creatures.Length; i++)
+            {
+                if (creatures[i] != null && !registry.Contains(creatures[i])) registry.Add(creatures[i]);
+            }
+
+            return registry;
         }
 
         private static void AddEncounterIfAvailable(

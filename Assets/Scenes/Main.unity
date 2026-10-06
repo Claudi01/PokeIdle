@@ -464,8 +464,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::PokeIdle.TaskbarIntegration
   applyOnStart: 1
   fallbackWidth: 720
-  fallbackHeight: 96
-  expandedHeight: 360
+  fallbackHeight: 160
+  expandedHeight: 604
   allowWindowDrag: 1
   dragHandleHeight: 22
 --- !u!114 &590972556

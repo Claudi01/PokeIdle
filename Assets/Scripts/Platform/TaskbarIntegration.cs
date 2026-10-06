@@ -1,211 +1,201 @@
+using System;
 using System.Collections;
 using UnityEngine;
+#if ENABLE_INPUT_SYSTEM
+using UnityEngine.InputSystem;
+#endif
+#if UNITY_STANDALONE_WIN && !UNITY_EDITOR
+using System.Runtime.InteropServices;
+using System.Text;
+#endif
 
 namespace PokeIdle
 {
     public sealed class TaskbarIntegration : MonoBehaviour
     {
         [SerializeField] private bool applyOnStart = true;
-        [SerializeField, Min(320)] private int fallbackWidth = 720;
-        [SerializeField, Min(48)] private int fallbackHeight = 96;
-        [SerializeField, Min(160)] private int expandedHeight = 360;
+        [SerializeField, Min(320)] private int fallbackWidth = TaskbarLayout.Width;
+        [SerializeField, Min(160)] private int fallbackHeight = TaskbarLayout.StripHeight;
+        [SerializeField, Min(600)] private int expandedHeight = TaskbarLayout.StripHeight + TaskbarLayout.MenuHeight;
         [SerializeField] private bool allowWindowDrag = true;
-        [SerializeField, Min(1)] private int dragHandleHeight = 22;
-
+        [SerializeField, Min(8)] private int dragHandleHeight = 22;
         public static TaskbarIntegration Instance { get; private set; }
-        private int collapsedWindowHeight;
+        public int CompactHeight { get { return Mathf.Max(TaskbarLayout.StripHeight, fallbackHeight); } }
+        public int ExpandedHeight { get { return Mathf.Max(expandedHeight, CompactHeight + TaskbarLayout.MenuHeight + 4); } }
+        public bool MenuExpanded { get; private set; }
+        public bool IsResizePending { get; private set; }
 
-        private void Start()
-        {
-            Instance = this;
-            if (applyOnStart)
-            {
-                StartCoroutine(ApplyOnNextFrame());
-            }
-        }
+        private void Awake() { Instance = this; }
+        private void Start() { if (applyOnStart) Apply(); }
+        private void OnDestroy() { if (Instance == this) Instance = null; }
+        public Rect GetGameplayViewport() { return TaskbarLayout.CameraViewport(Screen.width, Screen.height); }
 
-        private void OnDestroy()
+        public bool IsWindowDragPoint(Vector2 point)
         {
-            if (Instance == this)
-            {
-                Instance = null;
-            }
+            if (!allowWindowDrag || IsResizePending) return false;
+            return TaskbarLayout.DragHandle(Screen.width, Screen.height, dragHandleHeight).Contains(point);
         }
 
         private void Update()
         {
 #if UNITY_STANDALONE_WIN && !UNITY_EDITOR
-            if (!allowWindowDrag || !Input.GetMouseButtonDown(0) || Screen.height <= dragHandleHeight)
+            Vector2 mousePosition;
+            if (TryGetLeftMousePress(out mousePosition) && IsWindowDragPoint(mousePosition))
             {
-                return;
-            }
-
-            // A faixa superior esquerda fica livre para arrastar a janela sem bloquear os botoes.
-            bool isDragHandle = Input.mousePosition.y >= Screen.height - dragHandleHeight && Input.mousePosition.x < Screen.width - 280f;
-            if (isDragHandle)
-            {
-                BeginWindowDrag();
+                IntPtr handle = GetOwnedWindow();
+                if (handle == IntPtr.Zero) return;
+                ReleaseCapture();
+                SendMessage(handle, 0x00A1, new IntPtr(2), IntPtr.Zero);
             }
 #endif
         }
+
+#if UNITY_STANDALONE_WIN && !UNITY_EDITOR
+        private static bool TryGetLeftMousePress(out Vector2 screenPointFromTopLeft)
+        {
+#if ENABLE_INPUT_SYSTEM
+            Mouse mouse = Mouse.current;
+            if (mouse == null || !mouse.leftButton.wasPressedThisFrame)
+            {
+                screenPointFromTopLeft = Vector2.zero;
+                return false;
+            }
+
+            Vector2 position = mouse.position.ReadValue();
+            screenPointFromTopLeft = new Vector2(position.x, Screen.height - position.y);
+            return true;
+#elif ENABLE_LEGACY_INPUT_MANAGER
+            if (!Input.GetMouseButtonDown(0))
+            {
+                screenPointFromTopLeft = Vector2.zero;
+                return false;
+            }
+
+            Vector3 position = Input.mousePosition;
+            screenPointFromTopLeft = new Vector2(position.x, Screen.height - position.y);
+            return true;
+#else
+            screenPointFromTopLeft = Vector2.zero;
+            return false;
+#endif
+        }
+#endif
 
         public void Apply()
         {
 #if UNITY_STANDALONE_WIN && !UNITY_EDITOR
-            ApplyWindowsTaskbarLayout();
-#else
-            Debug.Log("TaskbarIntegration: a integração com a taskbar será aplicada apenas no build Windows.");
+            StartLayout(true);
 #endif
         }
-
-        private IEnumerator ApplyOnNextFrame()
-        {
-            yield return null;
-            Apply();
-        }
-
-#if UNITY_STANDALONE_WIN && !UNITY_EDITOR
-        private const int GWL_STYLE = -16;
-        private const int GWL_EXSTYLE = -20;
-        private const long WS_POPUP = 0x80000000L;
-        private const long WS_OVERLAPPEDWINDOW = 0x00CF0000L;
-        private const long WS_EX_TOOLWINDOW = 0x00000080L;
-        private const long WS_EX_APPWINDOW = 0x00040000L;
-        private const uint SWP_NOACTIVATE = 0x0010;
-        private const uint SWP_SHOWWINDOW = 0x0040;
-        private const int SW_SHOWNOACTIVATE = 4;
-        private const uint WM_NCLBUTTONDOWN = 0x00A1;
-        private const int HTCAPTION = 2;
-
-        private static readonly System.IntPtr HWND_TOPMOST = new System.IntPtr(-1);
-        private static readonly System.IntPtr HWND_TOP = new System.IntPtr(0);
-
-        [System.Runtime.InteropServices.StructLayout(System.Runtime.InteropServices.LayoutKind.Sequential)]
-        private struct Rect
-        {
-            public int Left;
-            public int Top;
-            public int Right;
-            public int Bottom;
-        }
-
-        [System.Runtime.InteropServices.DllImport("user32.dll", EntryPoint = "GetWindowLongPtrW", SetLastError = true)]
-        private static extern System.IntPtr GetWindowLongPtr64(System.IntPtr hWnd, int index);
-
-        [System.Runtime.InteropServices.DllImport("user32.dll", EntryPoint = "GetWindowLongW", SetLastError = true)]
-        private static extern int GetWindowLong32(System.IntPtr hWnd, int index);
-
-        [System.Runtime.InteropServices.DllImport("user32.dll", EntryPoint = "SetWindowLongPtrW", SetLastError = true)]
-        private static extern System.IntPtr SetWindowLongPtr64(System.IntPtr hWnd, int index, System.IntPtr value);
-
-        [System.Runtime.InteropServices.DllImport("user32.dll", EntryPoint = "SetWindowLongW", SetLastError = true)]
-        private static extern int SetWindowLong32(System.IntPtr hWnd, int index, int value);
-
-        [System.Runtime.InteropServices.DllImport("user32.dll")]
-        private static extern System.IntPtr GetActiveWindow();
-
-        [System.Runtime.InteropServices.DllImport("user32.dll", CharSet = System.Runtime.InteropServices.CharSet.Unicode)]
-        private static extern System.IntPtr FindWindow(string className, string windowName);
-
-        [System.Runtime.InteropServices.DllImport("user32.dll")]
-        private static extern bool GetWindowRect(System.IntPtr hWnd, out Rect rect);
-
-        [System.Runtime.InteropServices.DllImport("user32.dll")]
-        private static extern bool SetWindowPos(System.IntPtr hWnd, System.IntPtr insertAfter, int x, int y, int width, int height, uint flags);
-
-        [System.Runtime.InteropServices.DllImport("user32.dll")]
-        private static extern bool ShowWindow(System.IntPtr hWnd, int command);
-
-        [System.Runtime.InteropServices.DllImport("user32.dll")]
-        private static extern bool ReleaseCapture();
-
-        [System.Runtime.InteropServices.DllImport("user32.dll")]
-        private static extern System.IntPtr SendMessage(System.IntPtr hWnd, uint message, System.IntPtr wParam, System.IntPtr lParam);
-
-        private void ApplyWindowsTaskbarLayout()
-        {
-            System.IntPtr windowHandle = GetActiveWindow();
-            if (windowHandle == System.IntPtr.Zero)
-            {
-                Debug.LogWarning("TaskbarIntegration: não foi possível obter a janela do jogo.");
-                return;
-            }
-
-            System.IntPtr taskbarHandle = FindWindow("Shell_TrayWnd", null);
-            Rect taskbarRect = new Rect();
-            bool hasTaskbarRect = taskbarHandle != System.IntPtr.Zero && GetWindowRect(taskbarHandle, out taskbarRect);
-
-            int availableWidth = hasTaskbarRect ? taskbarRect.Right - taskbarRect.Left : Screen.currentResolution.width;
-            int width = Mathf.Min(fallbackWidth, Mathf.Max(320, availableWidth));
-            int height = Mathf.Max(48, fallbackHeight);
-            int x = hasTaskbarRect
-                ? taskbarRect.Left + Mathf.Max(0, (availableWidth - width) / 2)
-                : Mathf.Max(0, (Screen.currentResolution.width - width) / 2);
-            int y = hasTaskbarRect
-                ? taskbarRect.Top - height
-                : Screen.currentResolution.height - height;
-            collapsedWindowHeight = height;
-
-            long style = GetWindowLong(windowHandle, GWL_STYLE).ToInt64();
-            style = (style & ~WS_OVERLAPPEDWINDOW) | WS_POPUP;
-            SetWindowLong(windowHandle, GWL_STYLE, new System.IntPtr(style));
-
-            long extendedStyle = GetWindowLong(windowHandle, GWL_EXSTYLE).ToInt64();
-            extendedStyle = (extendedStyle | WS_EX_TOOLWINDOW) & ~WS_EX_APPWINDOW;
-            SetWindowLong(windowHandle, GWL_EXSTYLE, new System.IntPtr(extendedStyle));
-
-            Screen.SetResolution(width, height, FullScreenMode.Windowed);
-            SetWindowPos(windowHandle, HWND_TOPMOST, x, y, width, height, SWP_NOACTIVATE | SWP_SHOWWINDOW);
-            ShowWindow(windowHandle, SW_SHOWNOACTIVATE);
-        }
-
-        private static System.IntPtr GetWindowLong(System.IntPtr handle, int index)
-        {
-            return System.IntPtr.Size == 8 ? GetWindowLongPtr64(handle, index) : new System.IntPtr(GetWindowLong32(handle, index));
-        }
-
-        private static System.IntPtr SetWindowLong(System.IntPtr handle, int index, System.IntPtr value)
-        {
-            return System.IntPtr.Size == 8 ? SetWindowLongPtr64(handle, index, value) : new System.IntPtr(SetWindowLong32(handle, index, value.ToInt32()));
-        }
-
-        private void BeginWindowDrag()
-        {
-            System.IntPtr windowHandle = GetActiveWindow();
-            if (windowHandle == System.IntPtr.Zero)
-            {
-                return;
-            }
-
-            ReleaseCapture();
-            SendMessage(windowHandle, WM_NCLBUTTONDOWN, new System.IntPtr(HTCAPTION), System.IntPtr.Zero);
-        }
-
-        private void ResizeWindowsTaskbarWindow(bool expanded)
-        {
-            System.IntPtr windowHandle = GetActiveWindow();
-            Rect currentRect;
-            if (windowHandle == System.IntPtr.Zero || !GetWindowRect(windowHandle, out currentRect))
-            {
-                return;
-            }
-
-            int width = currentRect.Right - currentRect.Left;
-            int bottom = currentRect.Bottom;
-            int targetHeight = expanded
-                ? Mathf.Max(expandedHeight, collapsedWindowHeight)
-                : Mathf.Max(48, collapsedWindowHeight);
-
-            Screen.SetResolution(width, targetHeight, FullScreenMode.Windowed);
-            SetWindowPos(windowHandle, HWND_TOPMOST, currentRect.Left, bottom - targetHeight, width, targetHeight, SWP_NOACTIVATE | SWP_SHOWWINDOW);
-        }
-#endif
 
         public void SetMenuExpanded(bool expanded)
         {
+            MenuExpanded = expanded;
 #if UNITY_STANDALONE_WIN && !UNITY_EDITOR
-            ResizeWindowsTaskbarWindow(expanded);
+            StartLayout(false);
 #endif
         }
+
+#if UNITY_STANDALONE_WIN && !UNITY_EDITOR
+        private Coroutine resizeRoutine;
+        private IntPtr ownedWindow;
+        private static readonly IntPtr Topmost = new IntPtr(-1);
+        private const uint FrameFlags = 0x0010 | 0x0040 | 0x0020;
+        [StructLayout(LayoutKind.Sequential)]
+        private struct NativeRect { public int Left, Top, Right, Bottom; }
+        [StructLayout(LayoutKind.Sequential)]
+        private struct MonitorInfo { public int Size; public NativeRect Monitor, Work; public uint Flags; }
+        private delegate bool WindowCallback(IntPtr handle, IntPtr parameter);
+        [DllImport("user32.dll")] private static extern bool EnumWindows(WindowCallback callback, IntPtr parameter);
+        [DllImport("user32.dll")] private static extern uint GetWindowThreadProcessId(IntPtr handle, out uint processId);
+        [DllImport("kernel32.dll")] private static extern uint GetCurrentProcessId();
+        [DllImport("user32.dll")] private static extern bool IsWindow(IntPtr handle);
+        [DllImport("user32.dll", CharSet = CharSet.Unicode)] private static extern int GetClassName(IntPtr handle, StringBuilder name, int max);
+        [DllImport("user32.dll")] private static extern IntPtr MonitorFromWindow(IntPtr handle, uint flags);
+        [DllImport("user32.dll", CharSet = CharSet.Auto)] private static extern bool GetMonitorInfo(IntPtr monitor, ref MonitorInfo info);
+        [DllImport("user32.dll")] private static extern bool GetWindowRect(IntPtr handle, out NativeRect rect);
+        [DllImport("user32.dll", SetLastError = true)] private static extern bool SetWindowPos(IntPtr handle, IntPtr after, int x, int y, int w, int h, uint flags);
+        [DllImport("user32.dll", EntryPoint = "GetWindowLongPtrW")] private static extern IntPtr GetLong64(IntPtr handle, int index);
+        [DllImport("user32.dll", EntryPoint = "GetWindowLongW")] private static extern int GetLong32(IntPtr handle, int index);
+        [DllImport("user32.dll", EntryPoint = "SetWindowLongPtrW")] private static extern IntPtr SetLong64(IntPtr handle, int index, IntPtr value);
+        [DllImport("user32.dll", EntryPoint = "SetWindowLongW")] private static extern int SetLong32(IntPtr handle, int index, int value);
+        [DllImport("user32.dll")] private static extern bool ReleaseCapture();
+        [DllImport("user32.dll")] private static extern IntPtr SendMessage(IntPtr handle, uint message, IntPtr w, IntPtr l);
+
+        private IntPtr GetOwnedWindow()
+        {
+            uint process = GetCurrentProcessId();
+            uint owner;
+            if (ownedWindow != IntPtr.Zero && IsWindow(ownedWindow))
+            {
+                GetWindowThreadProcessId(ownedWindow, out owner);
+                if (owner == process) return ownedWindow;
+            }
+            ownedWindow = IntPtr.Zero;
+            EnumWindows((handle, parameter) =>
+            {
+                uint candidateProcess;
+                GetWindowThreadProcessId(handle, out candidateProcess);
+                if (candidateProcess != process) return true;
+                var name = new StringBuilder(128);
+                GetClassName(handle, name, name.Capacity);
+                if (name.ToString() != "UnityWndClass") return true;
+                ownedWindow = handle;
+                return false;
+            }, IntPtr.Zero);
+            return ownedWindow;
+        }
+
+        private void StartLayout(bool initial)
+        {
+            if (resizeRoutine != null) StopCoroutine(resizeRoutine);
+            resizeRoutine = StartCoroutine(ResizeWindow(initial));
+        }
+
+        private IEnumerator ResizeWindow(bool initial)
+        {
+            IsResizePending = true;
+            IntPtr handle = GetOwnedWindow();
+            for (int i = 0; handle == IntPtr.Zero && i < 90; i++)
+            {
+                yield return null;
+                handle = GetOwnedWindow();
+            }
+            if (handle == IntPtr.Zero)
+            {
+                Debug.LogWarning("PokeIdle: janela do proprio processo nao encontrada.");
+                IsResizePending = false;
+                yield break;
+            }
+            var info = new MonitorInfo { Size = Marshal.SizeOf(typeof(MonitorInfo)) };
+            NativeRect work = new NativeRect { Right = Screen.currentResolution.width, Bottom = Screen.currentResolution.height };
+            if (GetMonitorInfo(MonitorFromWindow(handle, 2), ref info)) work = info.Work;
+            NativeRect before;
+            GetWindowRect(handle, out before);
+            int width = Mathf.Min(Mathf.Max(320, fallbackWidth), work.Right - work.Left);
+            int height = Mathf.Min(MenuExpanded ? ExpandedHeight : CompactHeight, work.Bottom - work.Top);
+            int x = initial ? work.Left + (work.Right - work.Left - width) / 2 : before.Left;
+            int bottom = initial ? work.Bottom : before.Bottom;
+            x = Mathf.Clamp(x, work.Left, work.Right - width);
+            bottom = Mathf.Clamp(bottom, work.Top + height, work.Bottom);
+            Screen.SetResolution(width, height, FullScreenMode.Windowed);
+            // Unity applies resolution at frame end and may restore the window style then.
+            for (int i = 0; i < 3; i++) yield return null;
+            for (int pass = 0; pass < 2; pass++)
+            {
+                handle = GetOwnedWindow();
+                if (handle == IntPtr.Zero) break;
+                long style = IntPtr.Size == 8 ? GetLong64(handle, -16).ToInt64() : GetLong32(handle, -16);
+                style = (style & ~0x00CF0000L) | 0x80000000L;
+                if (IntPtr.Size == 8) SetLong64(handle, -16, new IntPtr(style));
+                else SetLong32(handle, -16, unchecked((int)style));
+                if (!SetWindowPos(handle, Topmost, x, bottom - height, width, height, FrameFlags))
+                    Debug.LogWarning("PokeIdle: falha ao posicionar janela: " + Marshal.GetLastWin32Error());
+                yield return null;
+            }
+            IsResizePending = false;
+            resizeRoutine = null;
+        }
+#endif
     }
 }

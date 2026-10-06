@@ -9,7 +9,7 @@ namespace PokeIdle
     /// </summary>
     public static class ProgressionRules
     {
-        public const int SaveVersion = 6;
+        public const int SaveVersion = 7;
         public const int PhaseProgressionSaveVersion = 5;
 
         private static GameBalanceConfig activeConfig;
@@ -84,6 +84,41 @@ namespace PokeIdle
             return activeConfig == null ? 45f : activeConfig.AutoSaveIntervalSeconds;
         }
 
+        public static int GetStartingPartySlots()
+        {
+            return activeConfig == null ? 1 : activeConfig.StartingPartySlots;
+        }
+
+        public static int GetMaxPartySlots()
+        {
+            return activeConfig == null ? 3 : activeConfig.MaxPartySlots;
+        }
+
+        public static int GetInitialBoxCapacity()
+        {
+            return activeConfig == null ? 30 : activeConfig.InitialBoxCapacity;
+        }
+
+        public static int GetBoxExpansionSize()
+        {
+            return activeConfig == null ? 10 : activeConfig.BoxExpansionSize;
+        }
+
+        public static int GetPartySlotCost(int slotNumber)
+        {
+            return activeConfig == null
+                ? Mathf.Max(1, 150 + (Mathf.Max(2, slotNumber) - 2) * 150)
+                : activeConfig.GetPartySlotCost(slotNumber);
+        }
+
+        public static int GetBoxExpansionCost(int currentCapacity)
+        {
+            if (activeConfig != null) return activeConfig.GetBoxExpansionCost(currentCapacity);
+
+            int expansions = Mathf.Max(0, (currentCapacity - 30) / 10);
+            return Mathf.Max(1, 100 + expansions * 50);
+        }
+
         public static int GetEnemiesPerPhase()
         {
             return activeConfig == null ? 10 : activeConfig.EnemiesPerPhase;
@@ -126,11 +161,16 @@ namespace PokeIdle
             return (int)Math.Min(int.MaxValue - 100, Math.Max(phaseLevel, playerFloor));
         }
 
-        public static int GetGoldReward(int enemyLevel, int routeNumber)
+        public static int GetDindinReward(int enemyLevel, int routeNumber)
         {
             return activeConfig == null
                 ? Mathf.Max(1, 4 + Mathf.Max(1, enemyLevel) + Mathf.Max(0, routeNumber - 1))
-                : activeConfig.GetGoldReward(enemyLevel, routeNumber);
+                : activeConfig.GetDindinReward(enemyLevel, routeNumber);
+        }
+
+        public static int GetGoldReward(int enemyLevel, int routeNumber)
+        {
+            return GetDindinReward(enemyLevel, routeNumber);
         }
 
         public static int GetLevelUpCost(int currentLevel)

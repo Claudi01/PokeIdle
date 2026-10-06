@@ -11,8 +11,8 @@ Abra `Assets/Resources/PokeIdle/Config/GameBalanceConfig.asset` na janela Projec
 - `Global Max Level`: limite absoluto de nivel (100 por padrao; libera o Prestige no futuro).
 - `Default World Level Cap` e `World Level Cap Growth`: limite do Pokemon por mundo. O padrao e 10 no mundo 1, 20 no mundo 2, 30 no mundo 3 etc.
 - `Auto Save Interval Seconds`: save automatico entre 30 e 60 segundos. Compras, derrotas e conclusoes de fase salvam imediatamente.
-- `Base Gold...`: recompensa de ouro.
-- `Base Level Up Cost`: custo em moedas para subir do nivel atual para o proximo.
+- `Base Dindin...`: recompensa de Dindin.
+- `Base Level Up Cost`: custo em Dindin para subir do nivel atual para o proximo.
 - `Level Up Cost Growth`: aumento do custo a cada novo nivel.
 - `Boss Level Bonus` e `Boss Health Multiplier`: dificuldade dos bosses.
 - `Enemy Levels Per Phase`: crescimento base por fase (1.25 por padrao).
@@ -47,7 +47,17 @@ Isso apaga apenas o save local do prototipo e inicia em `1-0` com o nivel defini
 - `Assets/Resources/PokeIdle/Demo/Creatures`: dados editaveis dos Pokemon placeholder.
 - `Assets/Resources/PokeIdle/Demo/Moves`: dados editaveis dos golpes placeholder.
 
-Para subir de nivel, abra o `MENU` durante o Play Mode. O botao `UPAR` mostra o custo do proximo nivel, desconta as moedas e restaura o HP do Pokemon. As derrotas continuam gerando ouro, mas o nivel nao sobe automaticamente.
+Para subir de nivel, abra o `MENU` durante o Play Mode. O botao `UPAR` mostra o custo do proximo nivel, desconta Dindin e restaura o HP do Pokemon. As derrotas continuam gerando Dindin, mas o nivel nao sobe automaticamente.
+
+## Party e PC Box
+
+O save v7 guarda a Party e a PC Box. O primeiro slot da Party inicia liberado; os demais, ate o limite configurado de 3, sao comprados com Dindin. `Party Slot Base Cost` e `Party Slot Cost Growth` controlam os precos. A Box comeca com 30 espacos e pode ser expandida em blocos de 10 por Dindin; esses valores ficam na secao `PC Box` do `GameBalanceConfig`.
+
+Durante o combate, escolher outro membro agenda a troca para o fim do round. Se o lider desmaiar, o primeiro membro saudavel assume automaticamente; a derrota so acontece quando todos os membros estiverem desmaiados. Ao concluir uma fase, toda a Party e curada. Arraste um membro pelo cabecalho do slot ate outro slot para reorganizar ou ate o slot do lider para solicitar a troca.
+
+A aba `POKEMON` mostra os slots da Party, custos de desbloqueio, capacidade da Box e criaturas armazenadas. A captura ainda sera conectada a `TryAddCreatureToCollection` na proxima milestone.
+
+Para testar a transferencia antes da captura existir, selecione `PokeIdleApp` na Hierarchy e use o menu de contexto `Add Test Squirtle To PC Box` no componente `GameLoopManager`. Esse atalho existe apenas no Editor.
 
 Depois de criar novas criaturas ou golpes, use `PokeIdle > Create Demo Content` apenas se quiser regenerar o conteudo de demonstracao. Esse comando atualiza os assets placeholder existentes.
 
@@ -70,6 +80,6 @@ Em `MENU > POKEMON`, Charmander pode evoluir para Charmeleon a partir do nivel 1
 
 Squirtle entra nos encontros do mundo 2, com peso 4; com os outros pesos atuais, tem 25% de chance por encontro normal. A disponibilidade por mundo esta em `DemoContent.cs`. O peso e editavel no asset `Squirtle`.
 
-Saves v5 mantem moedas, nivel, itens, fase e retorno para a fase perdida. Recebem os dois golpes iniciais. Saves v6 tambem guardam compras, slots, forma evoluida e dificuldade por fase. O arquivo agora e escrito primeiro como `pokeidle_save.json.tmp` e substituido atomicamente; se a Unity for encerrada durante a troca, o carregamento tenta recuperar o arquivo temporario completo.
+Saves v5 mantem moedas, nivel, itens, fase e retorno para a fase perdida. Recebem os dois golpes iniciais. Saves v6 guardam compras, slots, forma evoluida e dificuldade por fase. Saves v7 guardam Dindin, Party, PC Box, slots desbloqueados e capacidade da Box. O campo `Gold` antigo continua sendo lido como fallback para migracao. O arquivo agora e escrito primeiro como `pokeidle_save.json.tmp` e substituido atomicamente; se a Unity for encerrada durante a troca, o carregamento tenta recuperar o arquivo temporario completo.
 
 Para conferir a regressao sem alterar seu save, pare o Play Mode e use `PokeIdle > Validate Progression`. Os testes usam instancias separadas em memoria e aparecem no Console.

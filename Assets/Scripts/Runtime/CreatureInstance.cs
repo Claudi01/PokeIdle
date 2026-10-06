@@ -112,7 +112,7 @@ namespace PokeIdle
             if (Level < node.RequiredLevel) return "Requer nivel " + node.RequiredLevel + ".";
             if (node.Prerequisite != null && !LearnedMoveIds.Contains(node.Prerequisite.Id))
                 return "Aprenda " + node.Prerequisite.MoveName + " primeiro.";
-            if (gold < Math.Max(0, node.Cost)) return "Moedas insuficientes.";
+            if (gold < Math.Max(0, node.Cost)) return "Dindin insuficiente.";
             return null;
         }
 
@@ -143,7 +143,7 @@ namespace PokeIdle
         {
             if (Definition == null || Definition.EvolutionTarget == null) return "Sem evolucao disponivel.";
             if (Level < Definition.EvolutionLevel) return "Requer nivel " + Definition.EvolutionLevel + ".";
-            if (gold < Math.Max(0, Definition.EvolutionCost)) return "Moedas insuficientes.";
+            if (gold < Math.Max(0, Definition.EvolutionCost)) return "Dindin insuficiente.";
             return null;
         }
 
@@ -178,11 +178,11 @@ namespace PokeIdle
             get { return CurrentHP <= 0; }
         }
 
-        public void EnsureValid()
+        public void EnsureValid(bool reviveIfFainted = true)
         {
             Level = Mathf.Max(1, Level);
             CurrentHP = Mathf.Clamp(CurrentHP, 0, MaxHP);
-            if (CurrentHP == 0)
+            if (reviveIfFainted && CurrentHP == 0)
             {
                 CurrentHP = MaxHP;
             }
